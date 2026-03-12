@@ -1,20 +1,21 @@
--- ============================================================
--- MERIDIAN HEALTH SYSTEM — DATA QUALITY PLATFORM
--- Delta Lake DDL + Data Load Scripts
--- Databricks SQL — Unity Catalog
--- ============================================================
--- Catalog: dq_platform
--- All tables use Delta format, liquid clustering for query perf
--- ============================================================
+-- Databricks notebook source
+-- MAGIC %md
+-- MAGIC # MERIDIAN HEALTH SYSTEM — DATA QUALITY PLATFORM
+-- MAGIC Delta Lake DDL + Data Load Scripts
+-- MAGIC Databricks SQL — Unity Catalog
 
-CREATE CATALOG IF NOT EXISTS dq_platform;
-USE CATALOG dq_platform;
-CREATE DATABASE IF NOT EXISTS dq_core;
-USE DATABASE dq_core;
+-- COMMAND ----------
 
--- ────────────────────────────────────────────────────────────
--- DIMENSION / REFERENCE TABLES
--- ────────────────────────────────────────────────────────────
+USE CATALOG serverless_stable_jc9zgx_catalog;
+CREATE DATABASE IF NOT EXISTS data_quality;
+USE DATABASE data_quality;
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ## DIMENSION / REFERENCE TABLES
+
+-- COMMAND ----------
 
 CREATE OR REPLACE TABLE organization (
   organization_id     INT           NOT NULL,
@@ -22,31 +23,42 @@ CREATE OR REPLACE TABLE organization (
   dq_threshold_min    DOUBLE        COMMENT 'Floor score — below this is unacceptable',
   dq_threshold_warning DOUBLE       COMMENT 'Amber zone lower bound',
   dq_threshold_critical DOUBLE      COMMENT 'Red zone — immediate action required',
-  created_at          TIMESTAMP     NOT NULL
+  created_at          TIMESTAMP     NOT NULL,
+  CONSTRAINT pk_organization PRIMARY KEY (organization_id)
+
 )
 USING DELTA
 COMMENT 'Single organization record for Meridian Health System'
 TBLPROPERTIES ('delta.enableChangeDataFeed' = 'true');
 
+-- COMMAND ----------
+
 CREATE OR REPLACE TABLE quality_dimension (
   dimension_id        INT           NOT NULL,
   dimension_name      STRING        NOT NULL,
-  dimension_description STRING
+  dimension_description STRING,
+  CONSTRAINT pk_dimension PRIMARY KEY (dimension_id)
 )
 USING DELTA
 COMMENT 'The six standard data quality dimensions';
 
+-- COMMAND ----------
+
 CREATE OR REPLACE TABLE dq_rule_category (
   category_id         INT           NOT NULL,
   category_name       STRING        NOT NULL,
-  category_description STRING
+  category_description STRING,
+  CONSTRAINT pk_category PRIMARY KEY (category_id)
 )
 USING DELTA
 COMMENT 'Rule library categories for browsing and filtering';
 
--- ────────────────────────────────────────────────────────────
--- PEOPLE & HIERARCHY TABLES
--- ────────────────────────────────────────────────────────────
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ## PEOPLE & HIERARCHY TABLES
+
+-- COMMAND ----------
 
 CREATE OR REPLACE TABLE business_owner (
   owner_id            INT           NOT NULL,
@@ -54,11 +66,14 @@ CREATE OR REPLACE TABLE business_owner (
   owner_email         STRING,
   department          STRING,
   role                STRING        COMMENT 'Executive | Domain Owner | DBA | Steward',
-  created_at          TIMESTAMP     NOT NULL
+  created_at          TIMESTAMP     NOT NULL,
+  CONSTRAINT pk_owner PRIMARY KEY (owner_id)
 )
 USING DELTA
 CLUSTER BY (role)
 COMMENT 'Business owners and stewards accountable for data assets';
+
+-- COMMAND ----------
 
 CREATE OR REPLACE TABLE data_domain (
   domain_id           INT           NOT NULL,
@@ -69,14 +84,19 @@ CREATE OR REPLACE TABLE data_domain (
   dq_threshold_min    DOUBLE,
   dq_threshold_warning DOUBLE,
   dq_threshold_critical DOUBLE,
-  inherits_org_threshold BOOLEAN    DEFAULT FALSE,
+  inherits_org_threshold BOOLEAN,
   created_at          TIMESTAMP     NOT NULL,
   CONSTRAINT fk_domain_org    FOREIGN KEY (organization_id)   REFERENCES organization(organization_id),
-  CONSTRAINT fk_domain_owner  FOREIGN KEY (business_owner_id) REFERENCES business_owner(owner_id)
+  CONSTRAINT fk_domain_owner  FOREIGN KEY (business_owner_id) REFERENCES business_owner(owner_id),
+  CONSTRAINT pk_domain PRIMARY KEY (domain_id)
+
 )
 USING DELTA
 CLUSTER BY (organization_id)
 COMMENT 'Data domains — top-level subject area groupings';
+
+
+-- COMMAND ----------
 
 CREATE OR REPLACE TABLE catalog (
   catalog_id          INT           NOT NULL,
@@ -88,14 +108,18 @@ CREATE OR REPLACE TABLE catalog (
   dq_threshold_min    DOUBLE,
   dq_threshold_warning DOUBLE,
   dq_threshold_critical DOUBLE,
-  inherits_domain_threshold BOOLEAN DEFAULT FALSE,
+  inherits_domain_threshold BOOLEAN,
   created_at          TIMESTAMP     NOT NULL,
   CONSTRAINT fk_catalog_domain FOREIGN KEY (domain_id) REFERENCES data_domain(domain_id),
-  CONSTRAINT fk_catalog_owner  FOREIGN KEY (owner_id)  REFERENCES business_owner(owner_id)
+  CONSTRAINT fk_catalog_owner  FOREIGN KEY (owner_id)  REFERENCES business_owner(owner_id),
+  CONSTRAINT pk_catalog PRIMARY KEY (catalog_id)
+
 )
 USING DELTA
 CLUSTER BY (domain_id)
 COMMENT 'Catalogs / databases within each domain';
+
+-- COMMAND ----------
 
 CREATE OR REPLACE TABLE schema (
   schema_id           INT           NOT NULL,
@@ -105,10 +129,14 @@ CREATE OR REPLACE TABLE schema (
   created_at          TIMESTAMP     NOT NULL,
   CONSTRAINT fk_schema_catalog FOREIGN KEY (catalog_id) REFERENCES catalog(catalog_id),
   CONSTRAINT fk_schema_owner   FOREIGN KEY (owner_id)   REFERENCES business_owner(owner_id)
+  CONSTRAINT pk_schema PRIMARY KEY (schema_id)
+
 )
 USING DELTA
 CLUSTER BY (catalog_id)
 COMMENT 'Schemas within each catalog';
+
+-- COMMAND ----------
 
 CREATE OR REPLACE TABLE dq_table (
   table_id                  INT       NOT NULL,
@@ -116,35 +144,42 @@ CREATE OR REPLACE TABLE dq_table (
   owner_id                  INT       NOT NULL,
   table_name                STRING    NOT NULL,
   table_description         STRING,
-  is_critical               BOOLEAN   DEFAULT FALSE,
+  is_critical               BOOLEAN,
   expected_refresh_cadence  STRING    COMMENT 'hourly | daily | weekly',
   last_ingested_at          TIMESTAMP,
   created_at                TIMESTAMP NOT NULL,
   CONSTRAINT fk_table_schema FOREIGN KEY (schema_id) REFERENCES schema(schema_id),
-  CONSTRAINT fk_table_owner  FOREIGN KEY (owner_id)  REFERENCES business_owner(owner_id)
+  CONSTRAINT fk_table_owner  FOREIGN KEY (owner_id)  REFERENCES business_owner(owner_id),
+  CONSTRAINT pk_table PRIMARY KEY (table_id)
 )
 USING DELTA
-CLUSTER BY (schema_id, is_critical)
+CLUSTER BY (schema_id)
 COMMENT 'Tables tracked for data quality';
+
+-- COMMAND ----------
 
 CREATE OR REPLACE TABLE dq_column (
   column_id           INT           NOT NULL,
   table_id            INT           NOT NULL,
   column_name         STRING        NOT NULL,
   data_type           STRING,
-  is_nullable         BOOLEAN       DEFAULT TRUE,
-  is_primary_key      BOOLEAN       DEFAULT FALSE,
-  is_foreign_key      BOOLEAN       DEFAULT FALSE,
+  is_nullable         BOOLEAN       ,
+  is_primary_key      BOOLEAN       ,
+  is_foreign_key      BOOLEAN       ,
   created_at          TIMESTAMP     NOT NULL,
-  CONSTRAINT fk_column_table FOREIGN KEY (table_id) REFERENCES dq_table(table_id)
+  CONSTRAINT fk_column_table FOREIGN KEY (table_id) REFERENCES dq_table(table_id),
+  CONSTRAINT pk_column PRIMARY KEY (column_id)
 )
 USING DELTA
 CLUSTER BY (table_id)
 COMMENT 'Columns tracked within each monitored table';
 
--- ────────────────────────────────────────────────────────────
--- RULE LIBRARY TABLES
--- ────────────────────────────────────────────────────────────
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ## RULE LIBRARY TABLES
+
+-- COMMAND ----------
 
 CREATE OR REPLACE TABLE dq_rule (
   rule_id                 INT       NOT NULL,
@@ -156,18 +191,21 @@ CREATE OR REPLACE TABLE dq_rule (
   rule_type               STRING    COMMENT 'null_check | row_count_check | unique_check | range_check | stddev_check | anomaly_check | pattern_check | referential_check | freshness_check',
   default_severity_weight DOUBLE    COMMENT '1.0=minor, 2.0=moderate, 3.0=egregious',
   rule_sql                STRING    COMMENT 'Parameterized SQL template for the rule',
-  rule_status             STRING    DEFAULT 'active' COMMENT 'draft | active | deprecated',
-  version                 INT       DEFAULT 1,
-  is_system_rule          BOOLEAN   DEFAULT FALSE,
+  rule_status             STRING    COMMENT 'draft | active | deprecated',
+  version                 INT       ,
+  is_system_rule          BOOLEAN   ,
   created_by              STRING,
   created_at              TIMESTAMP NOT NULL,
   deprecated_at           TIMESTAMP,
   CONSTRAINT fk_rule_dimension FOREIGN KEY (dimension_id) REFERENCES quality_dimension(dimension_id),
-  CONSTRAINT fk_rule_category  FOREIGN KEY (category_id)  REFERENCES dq_rule_category(category_id)
+  CONSTRAINT fk_rule_category  FOREIGN KEY (category_id)  REFERENCES dq_rule_category(category_id),
+  CONSTRAINT pk_rule PRIMARY KEY (rule_id)
 )
 USING DELTA
 CLUSTER BY (dimension_id, rule_type)
 COMMENT 'Reusable data quality rule library';
+
+-- COMMAND ----------
 
 CREATE OR REPLACE TABLE column_rule_assignment (
   assignment_id           INT       NOT NULL,
@@ -176,18 +214,22 @@ CREATE OR REPLACE TABLE column_rule_assignment (
   threshold_value         DOUBLE    COMMENT 'Column-specific threshold value',
   threshold_operator      STRING    COMMENT 'lt | gt | eq | between',
   custom_severity_weight  DOUBLE    COMMENT 'Override default rule severity for this column',
-  is_active               BOOLEAN   DEFAULT TRUE,
+  is_active               BOOLEAN   ,
   created_at              TIMESTAMP NOT NULL,
   CONSTRAINT fk_assign_column FOREIGN KEY (column_id) REFERENCES dq_column(column_id),
-  CONSTRAINT fk_assign_rule   FOREIGN KEY (rule_id)   REFERENCES dq_rule(rule_id)
+  CONSTRAINT fk_assign_rule   FOREIGN KEY (rule_id)   REFERENCES dq_rule(rule_id),
+  CONSTRAINT pk_assignment PRIMARY KEY (assignment_id)
 )
 USING DELTA
 CLUSTER BY (column_id)
 COMMENT 'Assigns rules to specific columns with column-level thresholds';
 
--- ────────────────────────────────────────────────────────────
--- EXECUTION & RESULTS TABLES
--- ────────────────────────────────────────────────────────────
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ## EXECUTION & RESULTS TABLES
+
+-- COMMAND ----------
 
 CREATE OR REPLACE TABLE dq_run (
   run_id              INT           NOT NULL,
@@ -195,11 +237,14 @@ CREATE OR REPLACE TABLE dq_run (
   triggered_by        STRING        COMMENT 'scheduled | pipeline_event | manual',
   pipeline_job_id     STRING,
   run_scope           STRING        COMMENT 'full | incremental',
-  status              STRING        COMMENT 'completed | failed | partial'
+  status              STRING        COMMENT 'completed | failed | partial',
+  CONSTRAINT pk_run PRIMARY KEY (run_id)
 )
 USING DELTA
 CLUSTER BY (run_timestamp)
 COMMENT 'One record per DQ pipeline execution run';
+
+-- COMMAND ----------
 
 CREATE OR REPLACE TABLE column_rule_result (
   result_id           BIGINT        NOT NULL,
@@ -216,16 +261,20 @@ CREATE OR REPLACE TABLE column_rule_result (
   result_detail       STRING        COMMENT 'JSON: sample failures, error breakdown',
   evaluated_at        TIMESTAMP     NOT NULL,
   CONSTRAINT fk_result_run    FOREIGN KEY (run_id)        REFERENCES dq_run(run_id),
-  CONSTRAINT fk_result_assign FOREIGN KEY (assignment_id) REFERENCES column_rule_assignment(assignment_id)
+  CONSTRAINT fk_result_assign FOREIGN KEY (assignment_id) REFERENCES column_rule_assignment(assignment_id),
+  CONSTRAINT pk_result PRIMARY KEY (result_id)
 )
 USING DELTA
 CLUSTER BY (run_id, assignment_id)
 COMMENT 'Core fact table — one record per column-rule-run combination'
 TBLPROPERTIES ('delta.enableChangeDataFeed' = 'true');
 
--- ────────────────────────────────────────────────────────────
--- ALERTING TABLE
--- ────────────────────────────────────────────────────────────
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ## ALERTING TABLE
+
+-- COMMAND ----------
 
 CREATE OR REPLACE TABLE dq_alert (
   alert_id            INT           NOT NULL,
@@ -237,23 +286,27 @@ CREATE OR REPLACE TABLE dq_alert (
   severity            STRING        COMMENT 'info | warning | critical',
   message             STRING,
   triggered_at        TIMESTAMP     NOT NULL,
-  acknowledged_at     TIMESTAMP
+  acknowledged_at     TIMESTAMP,
+  CONSTRAINT fk_alert_dimension FOREIGN KEY (dimension_id) REFERENCES quality_dimension(dimension_id),
+  CONSTRAINT pk_alert PRIMARY KEY (alert_id)
 )
 USING DELTA
 CLUSTER BY (entity_type, severity)
 COMMENT 'Alerts triggered by threshold breaches and regressions';
 
--- ============================================================
--- VIEWS — SCORE ROLLUPS FOR DASHBOARD
--- These replace pre-aggregated tables and compute dynamically
--- ============================================================
+-- COMMAND ----------
 
--- ── Latest run ID helper ─────────────────────────────────────
+-- MAGIC %md
+-- MAGIC ## VIEWS — SCORE ROLLUPS FOR DASHBOARD
+
+-- COMMAND ----------
+
 CREATE OR REPLACE VIEW v_latest_run AS
 SELECT MAX(run_id) AS latest_run_id, MAX(run_timestamp) AS latest_run_ts
 FROM dq_run WHERE status = 'completed';
 
--- ── Column scores for latest run ─────────────────────────────
+-- COMMAND ----------
+
 CREATE OR REPLACE VIEW v_column_scores_latest AS
 SELECT
   crr.assignment_id,
@@ -284,7 +337,8 @@ JOIN dq_rule dr                 ON cra.rule_id = dr.rule_id
 JOIN quality_dimension qd       ON dr.dimension_id = qd.dimension_id
 JOIN v_latest_run lr            ON crr.run_id = lr.latest_run_id;
 
--- ── Table scores — latest run ─────────────────────────────────
+-- COMMAND ----------
+
 CREATE OR REPLACE VIEW v_table_scores_latest AS
 SELECT
   t.table_id,
@@ -322,7 +376,8 @@ GROUP BY t.table_id, t.table_name, t.is_critical, t.expected_refresh_cadence, t.
          d.domain_id, d.domain_name,
          d.dq_threshold_min, d.dq_threshold_warning, o.dq_threshold_min, o.dq_threshold_warning;
 
--- ── Schema scores — latest run ────────────────────────────────
+-- COMMAND ----------
+
 CREATE OR REPLACE VIEW v_schema_scores_latest AS
 SELECT
   schema_id, schema_name, catalog_id, catalog_name, domain_id, domain_name,
@@ -338,7 +393,8 @@ SELECT
 FROM v_table_scores_latest
 GROUP BY schema_id, schema_name, catalog_id, catalog_name, domain_id, domain_name;
 
--- ── Catalog scores — latest run ───────────────────────────────
+-- COMMAND ----------
+
 CREATE OR REPLACE VIEW v_catalog_scores_latest AS
 SELECT
   catalog_id, catalog_name, domain_id, domain_name,
@@ -355,7 +411,8 @@ SELECT
 FROM v_table_scores_latest
 GROUP BY catalog_id, catalog_name, domain_id, domain_name;
 
--- ── Domain scores — latest run ────────────────────────────────
+-- COMMAND ----------
+
 CREATE OR REPLACE VIEW v_domain_scores_latest AS
 SELECT
   domain_id, domain_name,
@@ -372,7 +429,8 @@ SELECT
 FROM v_table_scores_latest
 GROUP BY domain_id, domain_name;
 
--- ── Org score — latest run ────────────────────────────────────
+-- COMMAND ----------
+
 CREATE OR REPLACE VIEW v_org_score_latest AS
 SELECT
   o.organization_id,
@@ -396,7 +454,8 @@ JOIN data_domain d  ON ts.domain_id = d.domain_id
 JOIN organization o ON d.organization_id = o.organization_id
 GROUP BY o.organization_id, o.organization_name;
 
--- ── Owner scores — latest run ─────────────────────────────────
+-- COMMAND ----------
+
 CREATE OR REPLACE VIEW v_owner_scores_latest AS
 SELECT
   bo.owner_id,
@@ -416,7 +475,8 @@ FROM v_table_scores_latest ts
 JOIN business_owner bo ON ts.owner_id = bo.owner_id
 GROUP BY bo.owner_id, bo.owner_name, bo.department, bo.role;
 
--- ── 30-day trend (all runs, domain level) ─────────────────────
+-- COMMAND ----------
+
 CREATE OR REPLACE VIEW v_domain_score_trend AS
 SELECT
   d.domain_id,
@@ -442,7 +502,8 @@ JOIN data_domain d              ON c.domain_id = d.domain_id
 JOIN dq_run r                   ON crr.run_id = r.run_id
 GROUP BY d.domain_id, d.domain_name, r.run_id, r.run_timestamp;
 
--- ── 30-day trend (table level) ────────────────────────────────
+-- COMMAND ----------
+
 CREATE OR REPLACE VIEW v_table_score_trend AS
 SELECT
   t.table_id,
@@ -461,7 +522,8 @@ JOIN data_domain d              ON c.domain_id = d.domain_id
 JOIN dq_run r                   ON crr.run_id = r.run_id
 GROUP BY t.table_id, t.table_name, d.domain_name, r.run_id, r.run_timestamp;
 
--- ── Column-level detail for table drilldown ───────────────────
+-- COMMAND ----------
+
 CREATE OR REPLACE VIEW v_column_rule_detail AS
 SELECT
   dc.column_id,
@@ -503,36 +565,248 @@ JOIN catalog c                  ON s.catalog_id = c.catalog_id
 JOIN data_domain d              ON c.domain_id = d.domain_id
 JOIN v_latest_run lr            ON crr.run_id = lr.latest_run_id;
 
--- ============================================================
--- DATA LOAD — INSERT FROM EXTERNAL JSON OR STAGING
--- (Run after uploading dq_data.json to DBFS or a volume)
--- ============================================================
+-- COMMAND ----------
 
--- Step 1: Load JSON into a staging table
+-- MAGIC %md
+-- MAGIC ## DATA LOAD — INSERT FROM VOLUME
+
+-- COMMAND ----------
+
 CREATE OR REPLACE TEMP VIEW json_stage USING json
-OPTIONS (path 'dbfs:/FileStore/dq_platform/dq_data.json', multiLine 'true');
+OPTIONS (path '/Volumes/serverless_stable_jc9zgx_catalog/data_quality/raw_files/dq_data.json', multiLine 'true');
 
--- Step 2: Load each entity (adjust field mapping if needed)
-INSERT INTO organization         SELECT * FROM json_stage LATERAL VIEW EXPLODE(organization)         t AS r SELECT r.*;
-INSERT INTO business_owner       SELECT * FROM json_stage LATERAL VIEW EXPLODE(business_owners)      t AS r SELECT r.*;
-INSERT INTO quality_dimension    SELECT * FROM json_stage LATERAL VIEW EXPLODE(quality_dimensions)   t AS r SELECT r.*;
-INSERT INTO dq_rule_category     SELECT * FROM json_stage LATERAL VIEW EXPLODE(rule_categories)      t AS r SELECT r.*;
-INSERT INTO data_domain          SELECT * FROM json_stage LATERAL VIEW EXPLODE(data_domains)         t AS r SELECT r.*;
-INSERT INTO catalog              SELECT * FROM json_stage LATERAL VIEW EXPLODE(catalogs)             t AS r SELECT r.*;
-INSERT INTO schema               SELECT * FROM json_stage LATERAL VIEW EXPLODE(schemas)              t AS r SELECT r.*;
-INSERT INTO dq_table             SELECT * FROM json_stage LATERAL VIEW EXPLODE(tables)               t AS r SELECT r.*;
-INSERT INTO dq_column            SELECT * FROM json_stage LATERAL VIEW EXPLODE(columns)              t AS r SELECT r.*;
-INSERT INTO dq_rule              SELECT * FROM json_stage LATERAL VIEW EXPLODE(dq_rules)             t AS r SELECT r.*;
-INSERT INTO column_rule_assignment SELECT * FROM json_stage LATERAL VIEW EXPLODE(column_rule_assignments) t AS r SELECT r.*;
-INSERT INTO dq_run               SELECT * FROM json_stage LATERAL VIEW EXPLODE(dq_runs)              t AS r SELECT r.*;
-INSERT INTO column_rule_result   SELECT * FROM json_stage LATERAL VIEW EXPLODE(column_rule_results)  t AS r SELECT r.*;
-INSERT INTO dq_alert             SELECT * FROM json_stage LATERAL VIEW EXPLODE(dq_alerts)            t AS r SELECT r.*;
+-- COMMAND ----------
 
--- ============================================================
--- OPTIMIZE & ANALYZE (run after load)
--- ============================================================
-OPTIMIZE column_rule_result ZORDER BY (run_id, assignment_id);
-OPTIMIZE column_rule_assignment ZORDER BY (column_id);
-OPTIMIZE dq_column ZORDER BY (table_id);
+INSERT INTO organization
+SELECT
+  r.organization_id,
+  r.organization_name,
+  r.dq_threshold_min,
+  r.dq_threshold_warning,
+  r.dq_threshold_critical,
+  CAST(r.created_at AS TIMESTAMP)
+FROM json_stage
+LATERAL VIEW EXPLODE(organization) t AS r;
+
+-- COMMAND ----------
+
+INSERT INTO business_owner
+SELECT
+  r.owner_id,
+  r.owner_name,
+  r.owner_email,
+  r.department,
+  r.role,
+  CAST(r.created_at AS TIMESTAMP)
+FROM json_stage
+LATERAL VIEW EXPLODE(business_owners) t AS r;
+
+-- COMMAND ----------
+
+INSERT INTO quality_dimension
+SELECT
+  r.dimension_id,
+  r.dimension_name,
+  r.dimension_description
+FROM json_stage
+LATERAL VIEW EXPLODE(quality_dimensions) t AS r;
+
+-- COMMAND ----------
+
+INSERT INTO dq_rule_category
+SELECT
+  r.category_id,
+  r.category_name,
+  r.category_description
+FROM json_stage
+LATERAL VIEW EXPLODE(rule_categories) t AS r;
+
+-- COMMAND ----------
+
+INSERT INTO data_domain
+SELECT
+  r.domain_id,
+  r.organization_id,
+  r.business_owner_id,
+  r.domain_name,
+  r.domain_description,
+  r.dq_threshold_min,
+  r.dq_threshold_warning,
+  r.dq_threshold_critical,
+  r.inherits_org_threshold,
+  CAST(r.created_at AS TIMESTAMP)
+FROM json_stage
+LATERAL VIEW EXPLODE(data_domains) t AS r;
+
+-- COMMAND ----------
+
+INSERT INTO catalog
+SELECT
+  r.catalog_id,
+  r.domain_id,
+  r.owner_id,
+  r.catalog_name,
+  r.platform,
+  r.environment,
+  r.dq_threshold_min,
+  r.dq_threshold_warning,
+  r.dq_threshold_critical,
+  r.inherits_domain_threshold,
+  CAST(r.created_at AS TIMESTAMP)
+FROM json_stage
+LATERAL VIEW EXPLODE(catalogs) t AS r;
+
+-- COMMAND ----------
+
+INSERT INTO schema
+SELECT
+  r.schema_id,
+  r.catalog_id,
+  r.owner_id,
+  r.schema_name,
+  CAST(r.created_at AS TIMESTAMP)
+FROM json_stage
+LATERAL VIEW EXPLODE(schemas) t AS r;
+
+-- COMMAND ----------
+
+INSERT INTO dq_table
+SELECT
+  r.table_id,
+  r.schema_id,
+  r.owner_id,
+  r.table_name,
+  r.table_description,
+  r.is_critical,
+  r.expected_refresh_cadence,
+  CAST(r.last_ingested_at AS TIMESTAMP),
+  CAST(r.created_at AS TIMESTAMP)
+FROM json_stage
+LATERAL VIEW EXPLODE(tables) t AS r;
+
+-- COMMAND ----------
+
+INSERT INTO dq_column
+SELECT
+  r.column_id,
+  r.table_id,
+  r.column_name,
+  r.data_type,
+  r.is_nullable,
+  r.is_primary_key,
+  r.is_foreign_key,
+  CAST(r.created_at AS TIMESTAMP)
+FROM json_stage
+LATERAL VIEW EXPLODE(columns) t AS r;
+
+-- COMMAND ----------
+
+INSERT INTO dq_rule
+SELECT
+  r.rule_id,
+  r.dimension_id,
+  r.category_id,
+  CAST(r.parent_rule_id AS INT),
+  r.rule_name,
+  r.rule_description,
+  r.rule_type,
+  r.default_severity_weight,
+  r.rule_sql,
+  r.rule_status,
+  CAST(r.version AS INT),
+  r.is_system_rule,
+  r.created_by,
+  CAST(r.created_at AS TIMESTAMP),
+  CAST(r.deprecated_at AS TIMESTAMP)
+FROM json_stage
+LATERAL VIEW EXPLODE(dq_rules) t AS r;
+
+-- COMMAND ----------
+
+INSERT INTO column_rule_assignment
+SELECT
+  r.assignment_id,
+  r.column_id,
+  r.rule_id,
+  r.threshold_value,
+  r.threshold_operator,
+  r.custom_severity_weight,
+  r.is_active,
+  CAST(r.created_at AS TIMESTAMP)
+FROM json_stage
+LATERAL VIEW EXPLODE(column_rule_assignments) t AS r;
+
+-- COMMAND ----------
+
+INSERT INTO dq_run
+SELECT
+  r.run_id,
+  CAST(r.run_timestamp AS TIMESTAMP),
+  r.triggered_by,
+  r.pipeline_job_id,
+  r.run_scope,
+  r.status
+FROM json_stage
+LATERAL VIEW EXPLODE(dq_runs) t AS r;
+
+-- COMMAND ----------
+
+INSERT INTO column_rule_result
+SELECT
+  r.result_id,
+  r.run_id,
+  r.assignment_id,
+  r.passed,
+  r.total_records,
+  r.failed_records,
+  r.failure_rate,
+  r.raw_score,
+  r.weighted_score,
+  r.egregious_flag,
+  r.executed_rule_sql,
+  r.result_detail,
+  CAST(r.evaluated_at AS TIMESTAMP)
+FROM json_stage
+LATERAL VIEW EXPLODE(column_rule_results) t AS r;
+
+-- COMMAND ----------
+
+INSERT INTO dq_alert
+SELECT
+  r.alert_id,
+  r.dimension_id,
+  CAST(r.acknowledged_by AS INT),
+  r.entity_type,
+  r.entity_id,
+  r.alert_type,
+  r.severity,
+  r.message,
+  CAST(r.triggered_at AS TIMESTAMP),
+  CAST(r.acknowledged_at AS TIMESTAMP)
+FROM json_stage
+LATERAL VIEW EXPLODE(dq_alerts) t AS r;
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ## OPTIMIZE & ANALYZE
+
+-- COMMAND ----------
+
+OPTIMIZE column_rule_result;
+
+-- COMMAND ----------
+
+OPTIMIZE column_rule_assignment;
+
+-- COMMAND ----------
+
+OPTIMIZE dq_column;
+
+-- COMMAND ----------
+
 ANALYZE TABLE column_rule_result COMPUTE STATISTICS;
+
+-- COMMAND ----------
+
 ANALYZE TABLE column_rule_assignment COMPUTE STATISTICS;
