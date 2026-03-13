@@ -147,6 +147,43 @@
         "  overall_score ASC\n",
         "LIMIT 10"
       ]
+    },
+    {
+      "name": "8bd95e9a",
+      "displayName": "Domain Avg Scores",
+      "queryLines": [
+        "SELECT\n",
+        "  domain_name,\n",
+        "  overall_score\n",
+        "FROM\n",
+        "  serverless_stable_jc9zgx_catalog.data_quality.v_domain_scores_latest"
+      ]
+    },
+    {
+      "name": "6a7d3e73",
+      "displayName": "Open Critical Alerts",
+      "queryLines": [
+        "SELECT\n",
+        "  a.alert_id,\n",
+        "  t.table_name,\n",
+        "  t.domain_name,\n",
+        "  d.dimension_name,\n",
+        "  a.alert_type,\n",
+        "  a.message,\n",
+        "  a.triggered_at\n",
+        "FROM\n",
+        "  serverless_stable_jc9zgx_catalog.data_quality.dq_alert a\n",
+        "    LEFT JOIN serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest t\n",
+        "      ON a.entity_id = t.table_id\n",
+        "      AND a.entity_type = 'table'\n",
+        "    LEFT JOIN serverless_stable_jc9zgx_catalog.data_quality.quality_dimension d\n",
+        "      ON a.dimension_id = d.dimension_id\n",
+        "WHERE\n",
+        "  a.severity = 'critical'\n",
+        "  AND a.acknowledged_at IS NULL\n",
+        "ORDER BY\n",
+        "  a.triggered_at DESC"
+      ]
     }
   ],
   "pages": [
@@ -844,6 +881,89 @@
             "y": 9,
             "width": 6,
             "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "b31372f8",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "6a7d3e73",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "domain_name",
+                      "expression": "`domain_name`"
+                    },
+                    {
+                      "name": "dimension_name",
+                      "expression": "`dimension_name`"
+                    },
+                    {
+                      "name": "alert_type",
+                      "expression": "`alert_type`"
+                    },
+                    {
+                      "name": "message",
+                      "expression": "`message`"
+                    },
+                    {
+                      "name": "triggered_at",
+                      "expression": "`triggered_at`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Open Critical Alerts",
+                "showTitle": true
+              },
+              "rowsPerPage": 25,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "table_name",
+                    "displayName": "Table"
+                  },
+                  {
+                    "fieldName": "domain_name",
+                    "displayName": "Domain"
+                  },
+                  {
+                    "fieldName": "dimension_name",
+                    "displayName": "Dimension"
+                  },
+                  {
+                    "fieldName": "alert_type",
+                    "displayName": "Alert Type"
+                  },
+                  {
+                    "fieldName": "message",
+                    "displayName": "Message"
+                  },
+                  {
+                    "fieldName": "triggered_at",
+                    "displayName": "Triggered At"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 20,
+            "width": 6,
+            "height": 6
           }
         }
       ],
