@@ -1,0 +1,866 @@
+{
+  "datasets": [
+    {
+      "name": "49aa1948",
+      "displayName": "v_org_score_latest",
+      "queryLines": [
+        "SELECT * FROM serverless_stable_jc9zgx_catalog.data_quality.v_org_score_latest"
+      ]
+    },
+    {
+      "name": "e1fb688b",
+      "displayName": "Org Dimension Scores",
+      "queryLines": [
+        "SELECT 'Completeness' AS dimension, completeness_score AS score FROM serverless_stable_jc9zgx_catalog.data_quality.v_org_score_latest UNION ALL SELECT 'Accuracy', accuracy_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_org_score_latest UNION ALL SELECT 'Validity', validity_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_org_score_latest UNION ALL SELECT 'Consistency', consistency_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_org_score_latest UNION ALL SELECT 'Uniqueness', uniqueness_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_org_score_latest UNION ALL SELECT 'Timeliness', timeliness_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_org_score_latest order by score ASC"
+      ]
+    },
+    {
+      "name": "f733b910",
+      "displayName": "Tables Below Threshold",
+      "queryLines": [
+        "SELECT COUNT(*) AS cnt FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest WHERE overall_score < effective_threshold_min"
+      ]
+    },
+    {
+      "name": "33589ff4",
+      "displayName": "Pct Assets Monitored",
+      "queryLines": [
+        "SELECT pct_assets_monitored FROM serverless_stable_jc9zgx_catalog.data_quality.v_org_score_latest"
+      ]
+    },
+    {
+      "name": "24596ed1",
+      "displayName": "Org KPI Latest",
+      "queryLines": [
+        "SELECT overall_score, completeness_score, accuracy_score, validity_score, consistency_score, uniqueness_score, timeliness_score, tables_below_threshold, pct_assets_monitored, total_tables, total_domains FROM serverless_stable_jc9zgx_catalog.data_quality.v_org_score_latest"
+      ]
+    },
+    {
+      "name": "466718b6",
+      "displayName": "Org KPI Latest",
+      "queryLines": [
+        "SELECT overall_score, completeness_score, accuracy_score, validity_score, consistency_score, uniqueness_score, timeliness_score, tables_below_threshold, pct_assets_monitored, total_tables, total_domains FROM serverless_stable_jc9zgx_catalog.data_quality.v_org_score_latest"
+      ]
+    },
+    {
+      "name": "14fb39c1",
+      "displayName": "Org 30-Day Trend",
+      "queryLines": [
+        "SELECT \n",
+        "  dst.run_timestamp, \n",
+        "  ROUND(AVG(dst.overall_score),2) AS overall_score, \n",
+        "  ROUND(AVG(dst.completeness_score),2) AS completeness_score, \n",
+        "  ROUND(AVG(dst.accuracy_score),2) AS accuracy_score, \n",
+        "  ROUND(AVG(dst.validity_score),2) AS validity_score, \n",
+        "  ROUND(AVG(dst.consistency_score),2) AS consistency_score, \n",
+        "  ROUND(AVG(dst.uniqueness_score),2) AS uniqueness_score, \n",
+        "  ROUND(AVG(dst.timeliness_score),2) AS timeliness_score,\n",
+        "  org.dq_threshold_min,\n",
+        "  org.dq_threshold_warning,\n",
+        "  org.dq_threshold_critical\n",
+        "FROM serverless_stable_jc9zgx_catalog.data_quality.v_domain_score_trend dst\n",
+        "CROSS JOIN serverless_stable_jc9zgx_catalog.data_quality.organization org\n",
+        "GROUP BY dst.run_timestamp, org.dq_threshold_min, org.dq_threshold_warning, org.dq_threshold_critical\n",
+        "ORDER BY dst.run_timestamp"
+      ]
+    },
+    {
+      "name": "801238e1",
+      "displayName": "Pct Columns Failing",
+      "queryLines": [
+        "SELECT\n",
+        "  COUNT(DISTINCT\n",
+        "    CASE\n",
+        "      WHEN NOT crr.passed THEN dc.column_id\n",
+        "    END\n",
+        "  ) AS failing_columns,\n",
+        "  COUNT(DISTINCT dc.column_id) AS total_monitored_columns,\n",
+        "  ROUND(\n",
+        "    100.0\n",
+        "      * COUNT(DISTINCT\n",
+        "        CASE\n",
+        "          WHEN NOT crr.passed THEN dc.column_id\n",
+        "        END\n",
+        "      )\n",
+        "      / COUNT(DISTINCT dc.column_id),\n",
+        "    2\n",
+        "  ) AS pct_columns_failing\n",
+        "FROM\n",
+        "  serverless_stable_jc9zgx_catalog.data_quality.column_rule_result crr\n",
+        "    JOIN serverless_stable_jc9zgx_catalog.data_quality.column_rule_assignment cra\n",
+        "      ON crr.assignment_id = cra.assignment_id\n",
+        "    JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_column dc\n",
+        "      ON cra.column_id = dc.column_id\n",
+        "    JOIN serverless_stable_jc9zgx_catalog.data_quality.v_latest_run lr\n",
+        "      ON crr.run_id = lr.latest_run_id"
+      ]
+    },
+    {
+      "name": "2da9cd89",
+      "displayName": "Domain 30-Day Change",
+      "queryLines": [
+        "WITH ranked AS (\n",
+        "  SELECT\n",
+        "    domain_name,\n",
+        "    overall_score,\n",
+        "    run_timestamp,\n",
+        "    ROW_NUMBER() OVER (PARTITION BY domain_name ORDER BY run_timestamp ASC) AS rn_first,\n",
+        "    ROW_NUMBER() OVER (PARTITION BY domain_name ORDER BY run_timestamp DESC) AS rn_last\n",
+        "  FROM\n",
+        "    serverless_stable_jc9zgx_catalog.data_quality.v_domain_score_trend\n",
+        ")\n",
+        "SELECT\n",
+        "  f.domain_name,\n",
+        "  f.overall_score AS first_score,\n",
+        "  l.overall_score AS latest_score,\n",
+        "  ROUND(l.overall_score - f.overall_score, 2) AS score_change\n",
+        "FROM\n",
+        "  ranked f\n",
+        "    JOIN ranked l\n",
+        "      ON f.domain_name = l.domain_name\n",
+        "      AND l.rn_last = 1\n",
+        "WHERE\n",
+        "  f.rn_first = 1"
+      ]
+    },
+    {
+      "name": "798ba06b",
+      "displayName": "Org Trend Unpivoted",
+      "queryLines": [
+        "SELECT run_timestamp, 'Overall' AS dimension, overall_score AS score FROM (SELECT dst.run_timestamp, ROUND(AVG(dst.overall_score),2) AS overall_score, ROUND(AVG(dst.completeness_score),2) AS completeness_score, ROUND(AVG(dst.accuracy_score),2) AS accuracy_score, ROUND(AVG(dst.validity_score),2) AS validity_score, ROUND(AVG(dst.consistency_score),2) AS consistency_score, ROUND(AVG(dst.uniqueness_score),2) AS uniqueness_score, ROUND(AVG(dst.timeliness_score),2) AS timeliness_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_domain_score_trend dst GROUP BY dst.run_timestamp ORDER BY dst.run_timestamp) UNION ALL SELECT run_timestamp, 'Completeness', completeness_score FROM (SELECT dst.run_timestamp, ROUND(AVG(dst.overall_score),2) AS overall_score, ROUND(AVG(dst.completeness_score),2) AS completeness_score, ROUND(AVG(dst.accuracy_score),2) AS accuracy_score, ROUND(AVG(dst.validity_score),2) AS validity_score, ROUND(AVG(dst.consistency_score),2) AS consistency_score, ROUND(AVG(dst.uniqueness_score),2) AS uniqueness_score, ROUND(AVG(dst.timeliness_score),2) AS timeliness_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_domain_score_trend dst GROUP BY dst.run_timestamp ORDER BY dst.run_timestamp) UNION ALL SELECT run_timestamp, 'Accuracy', accuracy_score FROM (SELECT dst.run_timestamp, ROUND(AVG(dst.overall_score),2) AS overall_score, ROUND(AVG(dst.completeness_score),2) AS completeness_score, ROUND(AVG(dst.accuracy_score),2) AS accuracy_score, ROUND(AVG(dst.validity_score),2) AS validity_score, ROUND(AVG(dst.consistency_score),2) AS consistency_score, ROUND(AVG(dst.uniqueness_score),2) AS uniqueness_score, ROUND(AVG(dst.timeliness_score),2) AS timeliness_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_domain_score_trend dst GROUP BY dst.run_timestamp ORDER BY dst.run_timestamp) UNION ALL SELECT run_timestamp, 'Validity', validity_score FROM (SELECT dst.run_timestamp, ROUND(AVG(dst.overall_score),2) AS overall_score, ROUND(AVG(dst.completeness_score),2) AS completeness_score, ROUND(AVG(dst.accuracy_score),2) AS accuracy_score, ROUND(AVG(dst.validity_score),2) AS validity_score, ROUND(AVG(dst.consistency_score),2) AS consistency_score, ROUND(AVG(dst.uniqueness_score),2) AS uniqueness_score, ROUND(AVG(dst.timeliness_score),2) AS timeliness_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_domain_score_trend dst GROUP BY dst.run_timestamp ORDER BY dst.run_timestamp) UNION ALL SELECT run_timestamp, 'Consistency', consistency_score FROM (SELECT dst.run_timestamp, ROUND(AVG(dst.overall_score),2) AS overall_score, ROUND(AVG(dst.completeness_score),2) AS completeness_score, ROUND(AVG(dst.accuracy_score),2) AS accuracy_score, ROUND(AVG(dst.validity_score),2) AS validity_score, ROUND(AVG(dst.consistency_score),2) AS consistency_score, ROUND(AVG(dst.uniqueness_score),2) AS uniqueness_score, ROUND(AVG(dst.timeliness_score),2) AS timeliness_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_domain_score_trend dst GROUP BY dst.run_timestamp ORDER BY dst.run_timestamp) UNION ALL SELECT run_timestamp, 'Uniqueness', uniqueness_score FROM (SELECT dst.run_timestamp, ROUND(AVG(dst.overall_score),2) AS overall_score, ROUND(AVG(dst.completeness_score),2) AS completeness_score, ROUND(AVG(dst.accuracy_score),2) AS accuracy_score, ROUND(AVG(dst.validity_score),2) AS validity_score, ROUND(AVG(dst.consistency_score),2) AS consistency_score, ROUND(AVG(dst.uniqueness_score),2) AS uniqueness_score, ROUND(AVG(dst.timeliness_score),2) AS timeliness_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_domain_score_trend dst GROUP BY dst.run_timestamp ORDER BY dst.run_timestamp) UNION ALL SELECT run_timestamp, 'Timeliness', timeliness_score FROM (SELECT dst.run_timestamp, ROUND(AVG(dst.overall_score),2) AS overall_score, ROUND(AVG(dst.completeness_score),2) AS completeness_score, ROUND(AVG(dst.accuracy_score),2) AS accuracy_score, ROUND(AVG(dst.validity_score),2) AS validity_score, ROUND(AVG(dst.consistency_score),2) AS consistency_score, ROUND(AVG(dst.uniqueness_score),2) AS uniqueness_score, ROUND(AVG(dst.timeliness_score),2) AS timeliness_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_domain_score_trend dst GROUP BY dst.run_timestamp ORDER BY dst.run_timestamp)"
+      ]
+    },
+    {
+      "name": "9f6037b5",
+      "displayName": "Most Egregious Tables",
+      "queryLines": [
+        "SELECT\n",
+        "  table_name,\n",
+        "  domain_name,\n",
+        "  is_critical,\n",
+        "  overall_score,\n",
+        "  egregious_count,\n",
+        "  effective_threshold_min\n",
+        "FROM\n",
+        "  serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest\n",
+        "ORDER BY\n",
+        "  overall_score ASC\n",
+        "LIMIT 10"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "9e709449",
+      "displayName": "Organization Overview",
+      "layout": [
+        {
+          "widget": {
+            "name": "overall-organization-data-quality-score",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "49aa1948",
+                  "fields": [
+                    {
+                      "name": "sum(overall_score)",
+                      "expression": "SUM(`overall_score`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Overall Organization Data Quality Score"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(overall_score)"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "650f8b5f",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "e1fb688b",
+                  "fields": [
+                    {
+                      "name": "dimension",
+                      "expression": "`dimension`"
+                    },
+                    {
+                      "name": "score",
+                      "expression": "`score`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Org Data Quality Scores by Data Quality Dimension",
+                "showTitle": true
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "dimension",
+                  "axis": {
+                    "labelAngle": 90
+                  },
+                  "displayName": "dimension",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "y"
+                    }
+                  }
+                },
+                "y": {
+                  "fieldName": "score",
+                  "displayName": "score",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "f6459336",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "f733b910",
+                  "fields": [
+                    {
+                      "name": "cnt",
+                      "expression": "`cnt`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Tables Below Threshold"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "cnt",
+                  "displayName": "Tables Below Threshold"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 0,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "c5fa8050",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "33589ff4",
+                  "fields": [
+                    {
+                      "name": "pct_assets_monitored",
+                      "expression": "`pct_assets_monitored`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "% Assets Monitored"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "pct_assets_monitored",
+                  "displayName": "% Assets Monitored"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 5,
+            "y": 0,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "68feec5c",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "24596ed1",
+                  "fields": [
+                    {
+                      "name": "total_tables",
+                      "expression": "`total_tables`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Total Tables Monitored"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_tables",
+                  "displayName": "Total Tables Monitored"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 7,
+            "y": 0,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "63de1f6a",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "466718b6",
+                  "fields": [
+                    {
+                      "name": "total_domains",
+                      "expression": "`total_domains`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Total Data Domains"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_domains",
+                  "displayName": "Total Domains"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 9,
+            "y": 0,
+            "width": 1,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "55f44fe4",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "14fb39c1",
+                  "fields": [
+                    {
+                      "name": "run_timestamp",
+                      "expression": "`run_timestamp`"
+                    },
+                    {
+                      "name": "overall_score",
+                      "expression": "`overall_score`"
+                    },
+                    {
+                      "name": "dq_threshold_min",
+                      "expression": "`dq_threshold_min`"
+                    },
+                    {
+                      "name": "dq_threshold_warning",
+                      "expression": "`dq_threshold_warning`"
+                    },
+                    {
+                      "name": "dq_threshold_critical",
+                      "expression": "`dq_threshold_critical`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Enterprise DQ Score Over Time",
+                "showTitle": true
+              },
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "run_timestamp",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "fields": [
+                    {
+                      "fieldName": "overall_score",
+                      "displayName": "Overall Data Quality Score"
+                    },
+                    {
+                      "fieldName": "dq_threshold_min",
+                      "displayName": "Minimum Quality Threshold"
+                    },
+                    {
+                      "fieldName": "dq_threshold_warning",
+                      "displayName": "Warning Quality Treshold"
+                    },
+                    {
+                      "fieldName": "dq_threshold_critical",
+                      "displayName": "Critical Quality Treshold"
+                    }
+                  ]
+                },
+                "label": {
+                  "show": false
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 3,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "b1b61d7b",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "801238e1",
+                  "fields": [
+                    {
+                      "name": "total_monitored_columns",
+                      "expression": "`total_monitored_columns`"
+                    },
+                    {
+                      "name": "pct_columns_failing",
+                      "expression": "`pct_columns_failing`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "% Columns Failing at Least One Rule",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "pct_columns_failing",
+                  "format": {
+                    "type": "number-plain",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 1
+                    },
+                    "abbreviation": "none"
+                  },
+                  "displayName": "% Columns Failing"
+                },
+                "target": {
+                  "fieldName": "total_monitored_columns",
+                  "format": {
+                    "type": "number-plain",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 0
+                    },
+                    "abbreviation": "none"
+                  },
+                  "change": {
+                    "type": "numeric"
+                  },
+                  "displayName": "Total Monitored Columns"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 10,
+            "y": 0,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "ee3bcac2",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "2da9cd89",
+                  "fields": [
+                    {
+                      "name": "domain_name",
+                      "expression": "`domain_name`"
+                    },
+                    {
+                      "name": "score_change",
+                      "expression": "`score_change`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Domain Score Change (30 Days)",
+                "showTitle": true
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "domain_name",
+                  "displayName": "domain_name",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "y"
+                    }
+                  }
+                },
+                "y": {
+                  "fieldName": "score_change",
+                  "displayName": "Score Change",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "domain_name",
+                  "legend": {
+                    "hide": true
+                  },
+                  "displayName": "domain_name",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 16,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "985247bd",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "798ba06b",
+                  "fields": [
+                    {
+                      "name": "dimension",
+                      "expression": "`dimension`"
+                    },
+                    {
+                      "name": "run_timestamp",
+                      "expression": "`run_timestamp`"
+                    },
+                    {
+                      "name": "score",
+                      "expression": "`score`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Enterprise 30-Day Trend",
+                "showTitle": true
+              },
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "run_timestamp",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "score",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "dimension",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 9,
+            "width": 6,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "70a998dd",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "9f6037b5",
+                  "fields": [
+                    {
+                      "name": "domain_name",
+                      "expression": "`domain_name`"
+                    },
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "overall_score",
+                      "expression": "`overall_score`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Most Egregious Violations — Lowest Scoring Tables",
+                "showTitle": true
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "table_name",
+                  "displayName": "table_name",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "y"
+                    }
+                  }
+                },
+                "y": {
+                  "fieldName": "overall_score",
+                  "displayName": "Overall Score",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "domain_name",
+                  "legend": {
+                    "position": "bottom"
+                  },
+                  "displayName": "domain_name",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 13,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "283e3156",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "9f6037b5",
+                  "fields": [
+                    {
+                      "name": "domain_name",
+                      "expression": "`domain_name`"
+                    },
+                    {
+                      "name": "avg(overall_score)",
+                      "expression": "AVG(`overall_score`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Average Data Quality by Domain",
+                "showTitle": true
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "domain_name",
+                  "axis": {
+                    "labelAngle": 90
+                  },
+                  "displayName": "domain_name",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "y"
+                    }
+                  }
+                },
+                "y": {
+                  "fieldName": "avg(overall_score)",
+                  "displayName": "Average Score",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "domain_name",
+                  "legend": {
+                    "hide": true
+                  },
+                  "displayName": "domain_name",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 9,
+            "width": 6,
+            "height": 7
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    },
+    {
+      "name": "9752f691",
+      "displayName": "Global Filters",
+      "pageType": "PAGE_TYPE_GLOBAL_FILTERS",
+      "layoutVersion": "GRID_V1"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+    },
+    "applyModeEnabled": false
+  }
+}
