@@ -150,14 +150,32 @@
     },
     {
       "name": "8bd95e9a",
-      "displayName": "Domain Avg Scores",
+      "displayName": "Table Scores Filter Source",
       "queryLines": [
         "SELECT\n",
-        "  domain_name,\n",
-        "  overall_score\n",
+        "  *\n",
         "FROM\n",
-        "  serverless_stable_jc9zgx_catalog.data_quality.v_domain_scores_latest"
-      ]
+        "  v_table_scores_latest"
+      ],
+      "columns": [
+        {
+          "displayName": "Below Threshold",
+          "description": "1 if table score is below min threshold, 0 otherwise",
+          "expression": "CASE WHEN `overall_score` < `effective_threshold_min` THEN 1 ELSE 0 END"
+        },
+        {
+          "displayName": "Pass Rate %",
+          "description": "Percentage of rules that passed for each table",
+          "expression": "TRY_DIVIDE(`rules_passed`, `total_rules_run`) * 100"
+        },
+        {
+          "displayName": "Below Threshold?",
+          "description": "Yes if table is below minimum threshold, No otherwise",
+          "expression": "CASE WHEN `overall_score` < `effective_threshold_min` THEN 'Yes' ELSE 'No' END"
+        }
+      ],
+      "catalog": "serverless_stable_jc9zgx_catalog",
+      "schema": "data_quality"
     },
     {
       "name": "6a7d3e73",
@@ -183,6 +201,175 @@
         "  AND a.acknowledged_at IS NULL\n",
         "ORDER BY\n",
         "  a.triggered_at DESC"
+      ]
+    },
+    {
+      "name": "3d99938b",
+      "displayName": "Table Score Trend",
+      "queryLines": [
+        "SELECT\n",
+        "  tst.table_id,\n",
+        "  tst.table_name,\n",
+        "  tst.domain_name,\n",
+        "  tst.run_timestamp,\n",
+        "  tst.overall_score,\n",
+        "  ts.catalog_name,\n",
+        "  ts.schema_name,\n",
+        "  ts.overall_score AS latest_overall_score,\n",
+        "  ts.effective_threshold_min\n",
+        "FROM\n",
+        "  serverless_stable_jc9zgx_catalog.data_quality.v_table_score_trend tst\n",
+        "    JOIN serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts\n",
+        "      ON tst.table_id = ts.table_id"
+      ],
+      "columns": [
+        {
+          "displayName": "Below Threshold?",
+          "description": "Yes if table is currently below minimum threshold",
+          "expression": "CASE WHEN `latest_overall_score` < `effective_threshold_min` THEN 'Yes' ELSE 'No' END"
+        }
+      ]
+    },
+    {
+      "name": "ea981bad",
+      "displayName": "Column Rule Results",
+      "queryLines": [
+        "SELECT\n",
+        "  ts.table_name,\n",
+        "  ts.domain_name,\n",
+        "  ts.catalog_name,\n",
+        "  ts.schema_name,\n",
+        "  c.column_name,\n",
+        "  r.rule_name,\n",
+        "  r.rule_type,\n",
+        "  r.rule_description,\n",
+        "  qd.dimension_name,\n",
+        "  r.default_severity_weight,\n",
+        "  crr.passed,\n",
+        "  crr.total_records,\n",
+        "  crr.failed_records,\n",
+        "  crr.failure_rate,\n",
+        "  crr.raw_score,\n",
+        "  crr.weighted_score,\n",
+        "  crr.egregious_flag,\n",
+        "  crr.evaluated_at,\n",
+        "  crr.executed_rule_sql,\n",
+        "  ts.overall_score,\n",
+        "  ts.effective_threshold_min\n",
+        "FROM\n",
+        "  serverless_stable_jc9zgx_catalog.data_quality.column_rule_result crr\n",
+        "    JOIN serverless_stable_jc9zgx_catalog.data_quality.column_rule_assignment cra\n",
+        "      ON crr.assignment_id = cra.assignment_id\n",
+        "    JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_column c\n",
+        "      ON cra.column_id = c.column_id\n",
+        "    JOIN serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts\n",
+        "      ON c.table_id = ts.table_id\n",
+        "    JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_rule r\n",
+        "      ON cra.rule_id = r.rule_id\n",
+        "    JOIN serverless_stable_jc9zgx_catalog.data_quality.quality_dimension qd\n",
+        "      ON r.dimension_id = qd.dimension_id\n",
+        "    JOIN serverless_stable_jc9zgx_catalog.data_quality.v_latest_run lr\n",
+        "      ON crr.run_id = lr.latest_run_id"
+      ],
+      "columns": [
+        {
+          "displayName": "Below Threshold?",
+          "description": "Yes if table is below minimum threshold",
+          "expression": "CASE WHEN `overall_score` < `effective_threshold_min` THEN 'Yes' ELSE 'No' END"
+        }
+      ]
+    },
+    {
+      "name": "207bb1da",
+      "displayName": "Table Metadata",
+      "queryLines": [
+        "SELECT\n",
+        "  t.table_id,\n",
+        "  t.table_name,\n",
+        "  t.table_description,\n",
+        "  t.is_critical,\n",
+        "  t.expected_refresh_cadence,\n",
+        "  t.last_ingested_at,\n",
+        "  ts.domain_name,\n",
+        "  ts.catalog_name,\n",
+        "  ts.schema_name,\n",
+        "  ts.overall_score,\n",
+        "  ts.effective_threshold_min\n",
+        "FROM\n",
+        "  serverless_stable_jc9zgx_catalog.data_quality.dq_table t\n",
+        "    JOIN serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts\n",
+        "      ON t.table_id = ts.table_id"
+      ],
+      "columns": [
+        {
+          "displayName": "Below Threshold?",
+          "description": "Yes if table is below minimum threshold",
+          "expression": "CASE WHEN `overall_score` < `effective_threshold_min` THEN 'Yes' ELSE 'No' END"
+        }
+      ]
+    },
+    {
+      "name": "0ef517d6",
+      "displayName": "Table Alerts",
+      "queryLines": [
+        "SELECT\n",
+        "  a.alert_id,\n",
+        "  a.severity,\n",
+        "  a.alert_type,\n",
+        "  a.message,\n",
+        "  a.triggered_at,\n",
+        "  a.acknowledged_at,\n",
+        "  ts.table_name,\n",
+        "  ts.domain_name,\n",
+        "  ts.catalog_name,\n",
+        "  ts.schema_name,\n",
+        "  qd.dimension_name,\n",
+        "  ts.overall_score,\n",
+        "  ts.effective_threshold_min\n",
+        "FROM\n",
+        "  serverless_stable_jc9zgx_catalog.data_quality.dq_alert a\n",
+        "    JOIN serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts\n",
+        "      ON a.entity_id = ts.table_id\n",
+        "      AND a.entity_type = 'table'\n",
+        "    LEFT JOIN serverless_stable_jc9zgx_catalog.data_quality.quality_dimension qd\n",
+        "      ON a.dimension_id = qd.dimension_id"
+      ],
+      "columns": [
+        {
+          "displayName": "Below Threshold?",
+          "description": "Yes if table is below minimum threshold",
+          "expression": "CASE WHEN `overall_score` < `effective_threshold_min` THEN 'Yes' ELSE 'No' END"
+        }
+      ]
+    },
+    {
+      "name": "fdd802ab",
+      "displayName": "Column Details",
+      "queryLines": [
+        "SELECT\n",
+        "  c.column_id,\n",
+        "  c.column_name,\n",
+        "  c.data_type,\n",
+        "  c.is_nullable,\n",
+        "  c.is_primary_key,\n",
+        "  c.is_foreign_key,\n",
+        "  ts.table_name,\n",
+        "  ts.domain_name,\n",
+        "  ts.catalog_name,\n",
+        "  ts.schema_name,\n",
+        "  ts.overall_score,\n",
+        "  ts.effective_threshold_min\n",
+        "FROM\n",
+        "  serverless_stable_jc9zgx_catalog.data_quality.dq_column c\n",
+        "    JOIN serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts\n",
+        "      ON c.table_id = ts.table_id"
+      ],
+      "columns": [
+        {
+          "displayName": "Below Threshold?",
+          "description": "Yes if table is below minimum threshold",
+          "expression": "CASE WHEN `overall_score` < `effective_threshold_min` THEN 'Yes' ELSE 'No' END"
+        }
       ]
     }
   ],
@@ -974,6 +1161,2015 @@
       "name": "9752f691",
       "displayName": "Global Filters",
       "pageType": "PAGE_TYPE_GLOBAL_FILTERS",
+      "layoutVersion": "GRID_V1"
+    },
+    {
+      "name": "table_data_quality",
+      "displayName": "Table Data Quality",
+      "layout": [
+        {
+          "widget": {
+            "name": "filter_domain",
+            "queries": [
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f11f31039d1926888bf51163c529dc_domain_name",
+                "query": {
+                  "datasetName": "8bd95e9a",
+                  "fields": [
+                    {
+                      "name": "domain_name",
+                      "expression": "`domain_name`"
+                    },
+                    {
+                      "name": "domain_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230a7951141eb26cf795b00f1f07_domain_name",
+                "query": {
+                  "datasetName": "3d99938b",
+                  "fields": [
+                    {
+                      "name": "domain_name",
+                      "expression": "`domain_name`"
+                    },
+                    {
+                      "name": "domain_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d12041695bf748680ab48dc78_domain_name",
+                "query": {
+                  "datasetName": "207bb1da",
+                  "fields": [
+                    {
+                      "name": "domain_name",
+                      "expression": "`domain_name`"
+                    },
+                    {
+                      "name": "domain_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d155e1dd086f82e59d8ef8fca_domain_name",
+                "query": {
+                  "datasetName": "fdd802ab",
+                  "fields": [
+                    {
+                      "name": "domain_name",
+                      "expression": "`domain_name`"
+                    },
+                    {
+                      "name": "domain_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d104b1ec1b287457084dd40ae_domain_name",
+                "query": {
+                  "datasetName": "ea981bad",
+                  "fields": [
+                    {
+                      "name": "domain_name",
+                      "expression": "`domain_name`"
+                    },
+                    {
+                      "name": "domain_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d13e91610b568dc9647faf273_domain_name",
+                "query": {
+                  "datasetName": "0ef517d6",
+                  "fields": [
+                    {
+                      "name": "domain_name",
+                      "expression": "`domain_name`"
+                    },
+                    {
+                      "name": "domain_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Data Domain",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "domain_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f11f31039d1926888bf51163c529dc_domain_name"
+                  },
+                  {
+                    "fieldName": "domain_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230a7951141eb26cf795b00f1f07_domain_name"
+                  },
+                  {
+                    "fieldName": "domain_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d12041695bf748680ab48dc78_domain_name"
+                  },
+                  {
+                    "fieldName": "domain_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d155e1dd086f82e59d8ef8fca_domain_name"
+                  },
+                  {
+                    "fieldName": "domain_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d104b1ec1b287457084dd40ae_domain_name"
+                  },
+                  {
+                    "fieldName": "domain_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d13e91610b568dc9647faf273_domain_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 3,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "filter_catalog",
+            "queries": [
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f11f31039d1926888bf51163c529dc_catalog_name",
+                "query": {
+                  "datasetName": "8bd95e9a",
+                  "fields": [
+                    {
+                      "name": "catalog_name",
+                      "expression": "`catalog_name`"
+                    },
+                    {
+                      "name": "catalog_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230a7951141eb26cf795b00f1f07_catalog_name",
+                "query": {
+                  "datasetName": "3d99938b",
+                  "fields": [
+                    {
+                      "name": "catalog_name",
+                      "expression": "`catalog_name`"
+                    },
+                    {
+                      "name": "catalog_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d12041695bf748680ab48dc78_catalog_name",
+                "query": {
+                  "datasetName": "207bb1da",
+                  "fields": [
+                    {
+                      "name": "catalog_name",
+                      "expression": "`catalog_name`"
+                    },
+                    {
+                      "name": "catalog_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d155e1dd086f82e59d8ef8fca_catalog_name",
+                "query": {
+                  "datasetName": "fdd802ab",
+                  "fields": [
+                    {
+                      "name": "catalog_name",
+                      "expression": "`catalog_name`"
+                    },
+                    {
+                      "name": "catalog_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d104b1ec1b287457084dd40ae_catalog_name",
+                "query": {
+                  "datasetName": "ea981bad",
+                  "fields": [
+                    {
+                      "name": "catalog_name",
+                      "expression": "`catalog_name`"
+                    },
+                    {
+                      "name": "catalog_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d13e91610b568dc9647faf273_catalog_name",
+                "query": {
+                  "datasetName": "0ef517d6",
+                  "fields": [
+                    {
+                      "name": "catalog_name",
+                      "expression": "`catalog_name`"
+                    },
+                    {
+                      "name": "catalog_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Catalog",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "catalog_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f11f31039d1926888bf51163c529dc_catalog_name"
+                  },
+                  {
+                    "fieldName": "catalog_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230a7951141eb26cf795b00f1f07_catalog_name"
+                  },
+                  {
+                    "fieldName": "catalog_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d12041695bf748680ab48dc78_catalog_name"
+                  },
+                  {
+                    "fieldName": "catalog_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d155e1dd086f82e59d8ef8fca_catalog_name"
+                  },
+                  {
+                    "fieldName": "catalog_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d104b1ec1b287457084dd40ae_catalog_name"
+                  },
+                  {
+                    "fieldName": "catalog_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d13e91610b568dc9647faf273_catalog_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 0,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "filter_schema",
+            "queries": [
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f11f31039d1926888bf51163c529dc_schema_name",
+                "query": {
+                  "datasetName": "8bd95e9a",
+                  "fields": [
+                    {
+                      "name": "schema_name",
+                      "expression": "`schema_name`"
+                    },
+                    {
+                      "name": "schema_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230a7951141eb26cf795b00f1f07_schema_name",
+                "query": {
+                  "datasetName": "3d99938b",
+                  "fields": [
+                    {
+                      "name": "schema_name",
+                      "expression": "`schema_name`"
+                    },
+                    {
+                      "name": "schema_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d12041695bf748680ab48dc78_schema_name",
+                "query": {
+                  "datasetName": "207bb1da",
+                  "fields": [
+                    {
+                      "name": "schema_name",
+                      "expression": "`schema_name`"
+                    },
+                    {
+                      "name": "schema_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d155e1dd086f82e59d8ef8fca_schema_name",
+                "query": {
+                  "datasetName": "fdd802ab",
+                  "fields": [
+                    {
+                      "name": "schema_name",
+                      "expression": "`schema_name`"
+                    },
+                    {
+                      "name": "schema_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d104b1ec1b287457084dd40ae_schema_name",
+                "query": {
+                  "datasetName": "ea981bad",
+                  "fields": [
+                    {
+                      "name": "schema_name",
+                      "expression": "`schema_name`"
+                    },
+                    {
+                      "name": "schema_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d13e91610b568dc9647faf273_schema_name",
+                "query": {
+                  "datasetName": "0ef517d6",
+                  "fields": [
+                    {
+                      "name": "schema_name",
+                      "expression": "`schema_name`"
+                    },
+                    {
+                      "name": "schema_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Schema",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "schema_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f11f31039d1926888bf51163c529dc_schema_name"
+                  },
+                  {
+                    "fieldName": "schema_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230a7951141eb26cf795b00f1f07_schema_name"
+                  },
+                  {
+                    "fieldName": "schema_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d12041695bf748680ab48dc78_schema_name"
+                  },
+                  {
+                    "fieldName": "schema_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d155e1dd086f82e59d8ef8fca_schema_name"
+                  },
+                  {
+                    "fieldName": "schema_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d104b1ec1b287457084dd40ae_schema_name"
+                  },
+                  {
+                    "fieldName": "schema_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d13e91610b568dc9647faf273_schema_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 5,
+            "y": 0,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "filter_table",
+            "queries": [
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f11f31039d1926888bf51163c529dc_table_name",
+                "query": {
+                  "datasetName": "8bd95e9a",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "table_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230a7951141eb26cf795b00f1f07_table_name",
+                "query": {
+                  "datasetName": "3d99938b",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "table_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d12041695bf748680ab48dc78_table_name",
+                "query": {
+                  "datasetName": "207bb1da",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "table_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d155e1dd086f82e59d8ef8fca_table_name",
+                "query": {
+                  "datasetName": "fdd802ab",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "table_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d104b1ec1b287457084dd40ae_table_name",
+                "query": {
+                  "datasetName": "ea981bad",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "table_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d13e91610b568dc9647faf273_table_name",
+                "query": {
+                  "datasetName": "0ef517d6",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "table_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Table",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "table_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f11f31039d1926888bf51163c529dc_table_name"
+                  },
+                  {
+                    "fieldName": "table_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230a7951141eb26cf795b00f1f07_table_name"
+                  },
+                  {
+                    "fieldName": "table_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d12041695bf748680ab48dc78_table_name"
+                  },
+                  {
+                    "fieldName": "table_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d155e1dd086f82e59d8ef8fca_table_name"
+                  },
+                  {
+                    "fieldName": "table_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d104b1ec1b287457084dd40ae_table_name"
+                  },
+                  {
+                    "fieldName": "table_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d13e91610b568dc9647faf273_table_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 7,
+            "y": 0,
+            "width": 3,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "avg_overall_score",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "8bd95e9a",
+                  "fields": [
+                    {
+                      "name": "avg(overall_score)",
+                      "expression": "AVG(`overall_score`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Avg Overall Score",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "avg(overall_score)",
+                  "format": {
+                    "type": "number-plain",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 1
+                    },
+                    "abbreviation": "none"
+                  },
+                  "displayName": "Avg Overall Score"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "tables_below_threshold",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "8bd95e9a",
+                  "fields": [
+                    {
+                      "name": "sum(Below Threshold)",
+                      "expression": "SUM(`Below Threshold`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Tables Below Avg DQ Threshold",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(Below Threshold)",
+                  "format": {
+                    "type": "number-plain",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 0
+                    },
+                    "abbreviation": "none"
+                  },
+                  "style": {
+                    "rules": [
+                      {
+                        "condition": {
+                          "operand": {
+                            "type": "data-value",
+                            "value": "0"
+                          },
+                          "operator": ">"
+                        },
+                        "color": "#D32F2F"
+                      }
+                    ]
+                  },
+                  "displayName": "Tables Below Threshold"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 9,
+            "y": 6,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "total_tables",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "8bd95e9a",
+                  "fields": [
+                    {
+                      "name": "count(*)",
+                      "expression": "COUNT(`*`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Total Tables",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "count(*)",
+                  "format": {
+                    "type": "number-plain",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 0
+                    },
+                    "abbreviation": "none"
+                  },
+                  "displayName": "Total Tables"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 3,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "avg_pass_rate",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "8bd95e9a",
+                  "fields": [
+                    {
+                      "name": "avg(Pass Rate %)",
+                      "expression": "AVG(`Pass Rate %`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Avg DQ Rules Pass Rate",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "avg(Pass Rate %)",
+                  "format": {
+                    "type": "number-plain",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 1
+                    },
+                    "abbreviation": "none"
+                  },
+                  "displayName": "Avg Pass Rate"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 3,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "table_scorecard",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "8bd95e9a",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "domain_name",
+                      "expression": "`domain_name`"
+                    },
+                    {
+                      "name": "catalog_name",
+                      "expression": "`catalog_name`"
+                    },
+                    {
+                      "name": "schema_name",
+                      "expression": "`schema_name`"
+                    },
+                    {
+                      "name": "overall_score",
+                      "expression": "`overall_score`"
+                    },
+                    {
+                      "name": "completeness_score",
+                      "expression": "`completeness_score`"
+                    },
+                    {
+                      "name": "accuracy_score",
+                      "expression": "`accuracy_score`"
+                    },
+                    {
+                      "name": "validity_score",
+                      "expression": "`validity_score`"
+                    },
+                    {
+                      "name": "consistency_score",
+                      "expression": "`consistency_score`"
+                    },
+                    {
+                      "name": "uniqueness_score",
+                      "expression": "`uniqueness_score`"
+                    },
+                    {
+                      "name": "timeliness_score",
+                      "expression": "`timeliness_score`"
+                    },
+                    {
+                      "name": "rules_passed",
+                      "expression": "`rules_passed`"
+                    },
+                    {
+                      "name": "rules_failed",
+                      "expression": "`rules_failed`"
+                    },
+                    {
+                      "name": "is_critical",
+                      "expression": "`is_critical`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Table Scorecard",
+                "showTitle": true
+              },
+              "rowsPerPage": 25,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "table_name",
+                    "displayName": "Table"
+                  },
+                  {
+                    "fieldName": "domain_name",
+                    "displayName": "Domain"
+                  },
+                  {
+                    "fieldName": "catalog_name",
+                    "displayName": "Catalog"
+                  },
+                  {
+                    "fieldName": "schema_name",
+                    "displayName": "Schema"
+                  },
+                  {
+                    "fieldName": "overall_score",
+                    "displayName": "Overall Score",
+                    "style": {
+                      "type": "basic",
+                      "rules": [
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "80"
+                            },
+                            "operator": ">="
+                          },
+                          "backgroundColor": "#C8E6C9",
+                          "foregroundColor": "#1B5E20",
+                          "bold": true
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "70"
+                            },
+                            "operator": ">="
+                          },
+                          "backgroundColor": "#FFF9C4",
+                          "foregroundColor": "#F57F17",
+                          "bold": true
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "70"
+                            },
+                            "operator": "<"
+                          },
+                          "backgroundColor": "#FFCDD2",
+                          "foregroundColor": "#B71C1C",
+                          "bold": true
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "fieldName": "completeness_score",
+                    "displayName": "Completeness",
+                    "style": {
+                      "type": "basic",
+                      "rules": [
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "80"
+                            },
+                            "operator": ">="
+                          },
+                          "backgroundColor": "#C8E6C9",
+                          "foregroundColor": "#1B5E20"
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "70"
+                            },
+                            "operator": ">="
+                          },
+                          "backgroundColor": "#FFF9C4",
+                          "foregroundColor": "#F57F17"
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "70"
+                            },
+                            "operator": "<"
+                          },
+                          "backgroundColor": "#FFCDD2",
+                          "foregroundColor": "#B71C1C"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "fieldName": "accuracy_score",
+                    "displayName": "Accuracy",
+                    "style": {
+                      "type": "basic",
+                      "rules": [
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "80"
+                            },
+                            "operator": ">="
+                          },
+                          "backgroundColor": "#C8E6C9",
+                          "foregroundColor": "#1B5E20"
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "70"
+                            },
+                            "operator": ">="
+                          },
+                          "backgroundColor": "#FFF9C4",
+                          "foregroundColor": "#F57F17"
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "70"
+                            },
+                            "operator": "<"
+                          },
+                          "backgroundColor": "#FFCDD2",
+                          "foregroundColor": "#B71C1C"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "fieldName": "validity_score",
+                    "displayName": "Validity",
+                    "style": {
+                      "type": "basic",
+                      "rules": [
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "80"
+                            },
+                            "operator": ">="
+                          },
+                          "backgroundColor": "#C8E6C9",
+                          "foregroundColor": "#1B5E20"
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "70"
+                            },
+                            "operator": ">="
+                          },
+                          "backgroundColor": "#FFF9C4",
+                          "foregroundColor": "#F57F17"
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "70"
+                            },
+                            "operator": "<"
+                          },
+                          "backgroundColor": "#FFCDD2",
+                          "foregroundColor": "#B71C1C"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "fieldName": "consistency_score",
+                    "displayName": "Consistency",
+                    "style": {
+                      "type": "basic",
+                      "rules": [
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "80"
+                            },
+                            "operator": ">="
+                          },
+                          "backgroundColor": "#C8E6C9",
+                          "foregroundColor": "#1B5E20"
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "70"
+                            },
+                            "operator": ">="
+                          },
+                          "backgroundColor": "#FFF9C4",
+                          "foregroundColor": "#F57F17"
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "70"
+                            },
+                            "operator": "<"
+                          },
+                          "backgroundColor": "#FFCDD2",
+                          "foregroundColor": "#B71C1C"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "fieldName": "uniqueness_score",
+                    "displayName": "Uniqueness",
+                    "style": {
+                      "type": "basic",
+                      "rules": [
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "80"
+                            },
+                            "operator": ">="
+                          },
+                          "backgroundColor": "#C8E6C9",
+                          "foregroundColor": "#1B5E20"
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "70"
+                            },
+                            "operator": ">="
+                          },
+                          "backgroundColor": "#FFF9C4",
+                          "foregroundColor": "#F57F17"
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "70"
+                            },
+                            "operator": "<"
+                          },
+                          "backgroundColor": "#FFCDD2",
+                          "foregroundColor": "#B71C1C"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "fieldName": "timeliness_score",
+                    "displayName": "Timeliness",
+                    "style": {
+                      "type": "basic",
+                      "rules": [
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "80"
+                            },
+                            "operator": ">="
+                          },
+                          "backgroundColor": "#C8E6C9",
+                          "foregroundColor": "#1B5E20"
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "70"
+                            },
+                            "operator": ">="
+                          },
+                          "backgroundColor": "#FFF9C4",
+                          "foregroundColor": "#F57F17"
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "70"
+                            },
+                            "operator": "<"
+                          },
+                          "backgroundColor": "#FFCDD2",
+                          "foregroundColor": "#B71C1C"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "fieldName": "rules_passed",
+                    "displayName": "Rules Passed"
+                  },
+                  {
+                    "fieldName": "rules_failed",
+                    "displayName": "Rules Failed"
+                  },
+                  {
+                    "fieldName": "is_critical",
+                    "displayName": "Critical"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 12,
+            "width": 12,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "tables_by_score",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "8bd95e9a",
+                  "fields": [
+                    {
+                      "name": "domain_name",
+                      "expression": "`domain_name`"
+                    },
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "overall_score",
+                      "expression": "`overall_score`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Tables Ranked by Data Quality Score",
+                "showTitle": true
+              },
+              "mark": {
+                "layout": "stack"
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "table_name",
+                  "displayName": "Table",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "y"
+                    }
+                  }
+                },
+                "y": {
+                  "fieldName": "overall_score",
+                  "displayName": "Overall Score",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "domain_name",
+                  "legend": {
+                    "position": "bottom"
+                  },
+                  "displayName": "Domain",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 19,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "section_detail",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## <span style=\"text-align:center;display:block;\">Table Detail</span>"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 11,
+            "width": 12,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "table_score_trend",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "3d99938b",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "run_timestamp",
+                      "expression": "`run_timestamp`"
+                    },
+                    {
+                      "name": "overall_score",
+                      "expression": "`overall_score`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Table Score Trend",
+                "showTitle": true
+              },
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "run_timestamp",
+                  "displayName": "Run Timestamp",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "overall_score",
+                  "displayName": "Overall Score",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "table_name",
+                  "legend": {
+                    "position": "bottom"
+                  },
+                  "displayName": "Table",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 26,
+            "width": 8,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "table_metadata",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "207bb1da",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "table_description",
+                      "expression": "`table_description`"
+                    },
+                    {
+                      "name": "is_critical",
+                      "expression": "`is_critical`"
+                    },
+                    {
+                      "name": "expected_refresh_cadence",
+                      "expression": "`expected_refresh_cadence`"
+                    },
+                    {
+                      "name": "last_ingested_at",
+                      "expression": "`last_ingested_at`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Table Metadata",
+                "showTitle": true
+              },
+              "rowsPerPage": 25,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "table_name",
+                    "displayName": "Table"
+                  },
+                  {
+                    "fieldName": "table_description",
+                    "displayName": "Description"
+                  },
+                  {
+                    "fieldName": "is_critical",
+                    "displayName": "Critical"
+                  },
+                  {
+                    "fieldName": "expected_refresh_cadence",
+                    "displayName": "Refresh Cadence"
+                  },
+                  {
+                    "fieldName": "last_ingested_at",
+                    "displayName": "Last Ingested"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 19,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "rule_results",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ea981bad",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "column_name",
+                      "expression": "`column_name`"
+                    },
+                    {
+                      "name": "rule_name",
+                      "expression": "`rule_name`"
+                    },
+                    {
+                      "name": "dimension_name",
+                      "expression": "`dimension_name`"
+                    },
+                    {
+                      "name": "rule_type",
+                      "expression": "`rule_type`"
+                    },
+                    {
+                      "name": "passed",
+                      "expression": "`passed`"
+                    },
+                    {
+                      "name": "total_records",
+                      "expression": "`total_records`"
+                    },
+                    {
+                      "name": "failed_records",
+                      "expression": "`failed_records`"
+                    },
+                    {
+                      "name": "failure_rate",
+                      "expression": "`failure_rate`"
+                    },
+                    {
+                      "name": "raw_score",
+                      "expression": "`raw_score`"
+                    },
+                    {
+                      "name": "weighted_score",
+                      "expression": "`weighted_score`"
+                    },
+                    {
+                      "name": "egregious_flag",
+                      "expression": "`egregious_flag`"
+                    },
+                    {
+                      "name": "default_severity_weight",
+                      "expression": "`default_severity_weight`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Rule Execution Results",
+                "showTitle": true
+              },
+              "rowsPerPage": 25,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "table_name",
+                    "displayName": "Table"
+                  },
+                  {
+                    "fieldName": "column_name",
+                    "displayName": "Column"
+                  },
+                  {
+                    "fieldName": "rule_name",
+                    "displayName": "Rule Category"
+                  },
+                  {
+                    "fieldName": "dimension_name",
+                    "displayName": "Dimension"
+                  },
+                  {
+                    "fieldName": "rule_type",
+                    "displayName": "Type"
+                  },
+                  {
+                    "fieldName": "passed",
+                    "displayName": "Passed"
+                  },
+                  {
+                    "fieldName": "total_records",
+                    "displayName": "Total Records"
+                  },
+                  {
+                    "fieldName": "failed_records",
+                    "displayName": "Failed Records"
+                  },
+                  {
+                    "fieldName": "failure_rate",
+                    "displayName": "Failure Rate"
+                  },
+                  {
+                    "fieldName": "raw_score",
+                    "displayName": "Raw Score"
+                  },
+                  {
+                    "fieldName": "weighted_score",
+                    "displayName": "Weighted Score"
+                  },
+                  {
+                    "fieldName": "egregious_flag",
+                    "displayName": "Egregious"
+                  },
+                  {
+                    "fieldName": "default_severity_weight",
+                    "displayName": "Severity Weight"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 34,
+            "width": 12,
+            "height": 8
+          }
+        },
+        {
+          "widget": {
+            "name": "alert_counter",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "0ef517d6",
+                  "fields": [
+                    {
+                      "name": "count(alert_id)",
+                      "expression": "COUNT(`alert_id`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Total DQ Alerts",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "count(alert_id)",
+                  "format": {
+                    "type": "number-plain",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 0
+                    },
+                    "abbreviation": "none"
+                  },
+                  "style": {
+                    "rules": [
+                      {
+                        "condition": {
+                          "operand": {
+                            "type": "data-value",
+                            "value": "0"
+                          },
+                          "operator": ">"
+                        },
+                        "color": "#D32F2F"
+                      }
+                    ]
+                  },
+                  "displayName": "Total Alerts"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 6,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "alert_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "0ef517d6",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "severity",
+                      "expression": "`severity`"
+                    },
+                    {
+                      "name": "alert_type",
+                      "expression": "`alert_type`"
+                    },
+                    {
+                      "name": "dimension_name",
+                      "expression": "`dimension_name`"
+                    },
+                    {
+                      "name": "message",
+                      "expression": "`message`"
+                    },
+                    {
+                      "name": "triggered_at",
+                      "expression": "`triggered_at`"
+                    },
+                    {
+                      "name": "acknowledged_at",
+                      "expression": "`acknowledged_at`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Table Alerts",
+                "showTitle": true
+              },
+              "rowsPerPage": 25,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "table_name",
+                    "displayName": "Table"
+                  },
+                  {
+                    "fieldName": "severity",
+                    "displayName": "Severity"
+                  },
+                  {
+                    "fieldName": "alert_type",
+                    "displayName": "Alert Type"
+                  },
+                  {
+                    "fieldName": "dimension_name",
+                    "displayName": "Dimension"
+                  },
+                  {
+                    "fieldName": "message",
+                    "displayName": "Message"
+                  },
+                  {
+                    "fieldName": "triggered_at",
+                    "displayName": "Triggered At"
+                  },
+                  {
+                    "fieldName": "acknowledged_at",
+                    "displayName": "Acknowledged At"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 6,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "filter_threshold",
+            "queries": [
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f11f31039d1926888bf51163c529dc_Below Threshold?",
+                "query": {
+                  "datasetName": "8bd95e9a",
+                  "fields": [
+                    {
+                      "name": "Below Threshold?",
+                      "expression": "`Below Threshold?`"
+                    },
+                    {
+                      "name": "Below Threshold?_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230a7951141eb26cf795b00f1f07_Below Threshold?",
+                "query": {
+                  "datasetName": "3d99938b",
+                  "fields": [
+                    {
+                      "name": "Below Threshold?",
+                      "expression": "`Below Threshold?`"
+                    },
+                    {
+                      "name": "Below Threshold?_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d12041695bf748680ab48dc78_Below Threshold?",
+                "query": {
+                  "datasetName": "207bb1da",
+                  "fields": [
+                    {
+                      "name": "Below Threshold?",
+                      "expression": "`Below Threshold?`"
+                    },
+                    {
+                      "name": "Below Threshold?_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d155e1dd086f82e59d8ef8fca_Below Threshold?",
+                "query": {
+                  "datasetName": "fdd802ab",
+                  "fields": [
+                    {
+                      "name": "Below Threshold?",
+                      "expression": "`Below Threshold?`"
+                    },
+                    {
+                      "name": "Below Threshold?_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d104b1ec1b287457084dd40ae_Below Threshold?",
+                "query": {
+                  "datasetName": "ea981bad",
+                  "fields": [
+                    {
+                      "name": "Below Threshold?",
+                      "expression": "`Below Threshold?`"
+                    },
+                    {
+                      "name": "Below Threshold?_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d13e91610b568dc9647faf273_Below Threshold?",
+                "query": {
+                  "datasetName": "0ef517d6",
+                  "fields": [
+                    {
+                      "name": "Below Threshold?",
+                      "expression": "`Below Threshold?`"
+                    },
+                    {
+                      "name": "Below Threshold?_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Tables Below Avg DQ Threshold?",
+                "showTitle": true
+              },
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "Below Threshold?",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f11f31039d1926888bf51163c529dc_Below Threshold?"
+                  },
+                  {
+                    "fieldName": "Below Threshold?",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230a7951141eb26cf795b00f1f07_Below Threshold?"
+                  },
+                  {
+                    "fieldName": "Below Threshold?",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d12041695bf748680ab48dc78_Below Threshold?"
+                  },
+                  {
+                    "fieldName": "Below Threshold?",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d155e1dd086f82e59d8ef8fca_Below Threshold?"
+                  },
+                  {
+                    "fieldName": "Below Threshold?",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d104b1ec1b287457084dd40ae_Below Threshold?"
+                  },
+                  {
+                    "fieldName": "Below Threshold?",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d13e91610b568dc9647faf273_Below Threshold?"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 10,
+            "y": 0,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "89c1e61a",
+            "multilineTextboxSpec": {
+              "lines": [
+                "# <span style=\"text-align:center;display:block\">Overview of Table Data Quality</span>"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 12,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "f9b35c55",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## <span style=\"text-align:center;display:block;\">Data Quality Detail</span>"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 33,
+            "width": 12,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "rule_detail",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ea981bad",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "column_name",
+                      "expression": "`column_name`"
+                    },
+                    {
+                      "name": "rule_name",
+                      "expression": "`rule_name`"
+                    },
+                    {
+                      "name": "executed_rule_sql",
+                      "expression": "`executed_rule_sql`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Rule Execution Detail",
+                "showTitle": true
+              },
+              "rowsPerPage": 25,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "table_name",
+                    "displayName": "Table"
+                  },
+                  {
+                    "fieldName": "column_name",
+                    "displayName": "Column"
+                  },
+                  {
+                    "fieldName": "rule_name",
+                    "displayName": "Rule Category"
+                  },
+                  {
+                    "fieldName": "executed_rule_sql",
+                    "displayName": "Rule Message"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 42,
+            "width": 12,
+            "height": 8
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
       "layoutVersion": "GRID_V1"
     }
   ],
