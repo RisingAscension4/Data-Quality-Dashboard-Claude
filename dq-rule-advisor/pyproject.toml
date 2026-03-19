@@ -1,0 +1,14 @@
+[project]
+name = "dq-rule-advisor"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.11"
+dependencies = [
+    "databricks-sdk>=0.102.0",
+    "databricks-sql-connector>=4.2.5",
+    "fastapi>=0.135.1",
+    "openai>=2.29.0",
+    "pydantic>=2.12.5",
+    "python-multipart>=0.0.22",
+    "uvicorn[standard]>=0.42.0",
+]
