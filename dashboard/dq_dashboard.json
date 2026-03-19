@@ -1,0 +1,3828 @@
+{
+  "datasets": [
+    {
+      "name": "org_kpi_latest",
+      "displayName": "Org KPI Latest",
+      "queryLines": [
+        "SELECT overall_score, completeness_score, accuracy_score, validity_score, consistency_score, uniqueness_score, timeliness_score, tables_below_threshold, pct_assets_monitored, total_tables, total_domains FROM serverless_stable_jc9zgx_catalog.data_quality.v_org_score_latest"
+      ]
+    },
+    {
+      "name": "domain_scores_latest",
+      "displayName": "Domain Scores Latest",
+      "queryLines": [
+        "SELECT domain_name, overall_score, completeness_score, accuracy_score, validity_score, consistency_score, uniqueness_score, timeliness_score, tables_below_threshold FROM serverless_stable_jc9zgx_catalog.data_quality.v_domain_scores_latest ORDER BY overall_score ASC"
+      ]
+    },
+    {
+      "name": "org_trend_30d",
+      "displayName": "Org 30-Day Trend",
+      "queryLines": [
+        "SELECT dst.run_timestamp, ROUND(AVG(dst.overall_score),2) AS overall_score, ROUND(AVG(dst.completeness_score),2) AS completeness_score, ROUND(AVG(dst.accuracy_score),2) AS accuracy_score, ROUND(AVG(dst.validity_score),2) AS validity_score, ROUND(AVG(dst.consistency_score),2) AS consistency_score, ROUND(AVG(dst.uniqueness_score),2) AS uniqueness_score, ROUND(AVG(dst.timeliness_score),2) AS timeliness_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_domain_score_trend dst GROUP BY dst.run_timestamp ORDER BY dst.run_timestamp"
+      ]
+    },
+    {
+      "name": "top10_egregious",
+      "displayName": "Top 10 Egregious Tables",
+      "queryLines": [
+        "SELECT table_name, domain_name, catalog_name, overall_score, egregious_count FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ORDER BY overall_score ASC LIMIT 10"
+      ]
+    },
+    {
+      "name": "tables_below_thresh",
+      "displayName": "Tables Below Threshold",
+      "queryLines": [
+        "SELECT COUNT(*) AS cnt FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest WHERE overall_score < effective_threshold_min"
+      ]
+    },
+    {
+      "name": "pct_monitored",
+      "displayName": "Pct Assets Monitored",
+      "queryLines": [
+        "SELECT pct_assets_monitored FROM serverless_stable_jc9zgx_catalog.data_quality.v_org_score_latest"
+      ]
+    },
+    {
+      "name": "domain_detail",
+      "displayName": "Domain Detail",
+      "queryLines": [
+        "SELECT d.domain_name, cs.catalog_name, ROUND(AVG(ts.overall_score),2) AS overall_score, ROUND(AVG(ts.completeness_score),2) AS completeness_score, ROUND(AVG(ts.accuracy_score),2) AS accuracy_score, ROUND(AVG(ts.validity_score),2) AS validity_score, ROUND(AVG(ts.consistency_score),2) AS consistency_score, ROUND(AVG(ts.uniqueness_score),2) AS uniqueness_score, ROUND(AVG(ts.timeliness_score),2) AS timeliness_score, SUM(ts.rules_failed) AS total_failures, SUM(ts.egregious_count) AS egregious_count FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.catalog cs ON ts.catalog_id = cs.catalog_id JOIN serverless_stable_jc9zgx_catalog.data_quality.data_domain d ON ts.domain_id = d.domain_id GROUP BY d.domain_name, cs.catalog_name"
+      ]
+    },
+    {
+      "name": "domain_trend",
+      "displayName": "Domain 30-Day Trend",
+      "queryLines": [
+        "SELECT d.domain_name, dst.run_timestamp, dst.overall_score, dst.completeness_score, dst.accuracy_score, dst.validity_score, dst.consistency_score, dst.uniqueness_score, dst.timeliness_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_domain_score_trend dst JOIN serverless_stable_jc9zgx_catalog.data_quality.data_domain d ON dst.domain_id = d.domain_id ORDER BY dst.run_timestamp"
+      ]
+    },
+    {
+      "name": "domain_critical_tables",
+      "displayName": "Critical Tables at Risk",
+      "queryLines": [
+        "SELECT t.table_name, s.schema_name, ts.overall_score, ts.rules_failed, d.domain_name FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_table t ON ts.table_id = t.table_id JOIN serverless_stable_jc9zgx_catalog.data_quality.schema s ON ts.schema_id = s.schema_id JOIN serverless_stable_jc9zgx_catalog.data_quality.data_domain d ON ts.domain_id = d.domain_id WHERE t.is_critical = true AND ts.overall_score < ts.effective_threshold_warning ORDER BY ts.overall_score ASC"
+      ]
+    },
+    {
+      "name": "domain_rule_passfail",
+      "displayName": "Domain Rule Pass/Fail",
+      "queryLines": [
+        "SELECT d.domain_name, SUM(CASE WHEN crr.passed THEN 1 ELSE 0 END) AS passed_count, SUM(CASE WHEN NOT crr.passed THEN 1 ELSE 0 END) AS failed_count, COUNT(*) AS total_rules FROM serverless_stable_jc9zgx_catalog.data_quality.column_rule_result crr JOIN serverless_stable_jc9zgx_catalog.data_quality.column_rule_assignment cra ON crr.assignment_id = cra.assignment_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_column dc ON cra.column_id = dc.column_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_table t ON dc.table_id = t.table_id JOIN serverless_stable_jc9zgx_catalog.data_quality.data_domain d ON t.domain_id = d.domain_id JOIN serverless_stable_jc9zgx_catalog.data_quality.v_latest_run lr ON crr.run_id = lr.latest_run_id GROUP BY d.domain_name"
+      ]
+    },
+    {
+      "name": "owner_table_scores",
+      "displayName": "Owner Table Scores",
+      "queryLines": [
+        "SELECT t.table_name, d.domain_name, s.schema_name, ts.overall_score, ts.completeness_score, ts.accuracy_score, ts.validity_score, ts.consistency_score, ts.uniqueness_score, ts.timeliness_score, ts.rules_failed, ts.egregious_count, ts.effective_threshold_min, CASE WHEN ts.overall_score < ts.effective_threshold_min THEN 'Below Threshold' WHEN ts.overall_score < ts.effective_threshold_warning THEN 'Warning' ELSE 'Healthy' END AS status_band, bo.owner_name FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_table t ON ts.table_id = t.table_id JOIN serverless_stable_jc9zgx_catalog.data_quality.schema s ON ts.schema_id = s.schema_id JOIN serverless_stable_jc9zgx_catalog.data_quality.data_domain d ON ts.domain_id = d.domain_id JOIN serverless_stable_jc9zgx_catalog.data_quality.business_owner bo ON ts.owner_id = bo.owner_id ORDER BY ts.overall_score ASC"
+      ]
+    },
+    {
+      "name": "owner_scores",
+      "displayName": "Owner Scores",
+      "queryLines": [
+        "SELECT bo.owner_name, ROUND(AVG(ts.overall_score),2) AS overall_score, ROUND(AVG(ts.completeness_score),2) AS completeness_score, ROUND(AVG(ts.accuracy_score),2) AS accuracy_score, ROUND(AVG(ts.validity_score),2) AS validity_score, ROUND(AVG(ts.consistency_score),2) AS consistency_score, ROUND(AVG(ts.uniqueness_score),2) AS uniqueness_score, ROUND(AVG(ts.timeliness_score),2) AS timeliness_score, COUNT(*) AS table_count, SUM(ts.rules_failed) AS total_failures FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.business_owner bo ON ts.owner_id = bo.owner_id GROUP BY bo.owner_name ORDER BY overall_score ASC"
+      ]
+    },
+    {
+      "name": "owner_below_threshold",
+      "displayName": "Owner Assets Below Threshold",
+      "queryLines": [
+        "SELECT bo.owner_name, t.table_name, d.domain_name, ts.overall_score, ts.rules_failed FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_table t ON ts.table_id = t.table_id JOIN serverless_stable_jc9zgx_catalog.data_quality.data_domain d ON ts.domain_id = d.domain_id JOIN serverless_stable_jc9zgx_catalog.data_quality.business_owner bo ON ts.owner_id = bo.owner_id WHERE ts.overall_score < ts.effective_threshold_min ORDER BY ts.overall_score ASC"
+      ]
+    },
+    {
+      "name": "owner_top_failing_cols",
+      "displayName": "Top Failing Columns by Owner",
+      "queryLines": [
+        "SELECT bo.owner_name, dc.column_name, t.table_name, qd.dimension_name, crr.weighted_score, crr.failure_rate, crr.passed FROM serverless_stable_jc9zgx_catalog.data_quality.column_rule_result crr JOIN serverless_stable_jc9zgx_catalog.data_quality.column_rule_assignment cra ON crr.assignment_id = cra.assignment_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_column dc ON cra.column_id = dc.column_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_table t ON dc.table_id = t.table_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_rule dr ON cra.rule_id = dr.rule_id JOIN serverless_stable_jc9zgx_catalog.data_quality.quality_dimension qd ON dr.dimension_id = qd.dimension_id JOIN serverless_stable_jc9zgx_catalog.data_quality.business_owner bo ON t.owner_id = bo.owner_id JOIN serverless_stable_jc9zgx_catalog.data_quality.v_latest_run lr ON crr.run_id = lr.latest_run_id WHERE NOT crr.passed ORDER BY crr.weighted_score ASC LIMIT 50"
+      ]
+    },
+    {
+      "name": "catalog_scores",
+      "displayName": "Catalog Scores",
+      "queryLines": [
+        "SELECT cs.catalog_name, ROUND(AVG(ts.overall_score),2) AS overall_score, ROUND(AVG(ts.completeness_score),2) AS completeness_score, ROUND(AVG(ts.accuracy_score),2) AS accuracy_score, ROUND(AVG(ts.validity_score),2) AS validity_score, ROUND(AVG(ts.consistency_score),2) AS consistency_score, ROUND(AVG(ts.uniqueness_score),2) AS uniqueness_score, ROUND(AVG(ts.timeliness_score),2) AS timeliness_score, SUM(CASE WHEN ts.overall_score < ts.effective_threshold_min THEN 1 ELSE 0 END) AS tables_below_threshold FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.catalog cs ON ts.catalog_id = cs.catalog_id GROUP BY cs.catalog_name ORDER BY overall_score ASC"
+      ]
+    },
+    {
+      "name": "schema_scores",
+      "displayName": "Schema Scores",
+      "queryLines": [
+        "SELECT cs.catalog_name, s.schema_name, ROUND(AVG(ts.overall_score),2) AS overall_score, ROUND(AVG(ts.completeness_score),2) AS completeness_score, ROUND(AVG(ts.accuracy_score),2) AS accuracy_score, ROUND(AVG(ts.validity_score),2) AS validity_score, ROUND(AVG(ts.consistency_score),2) AS consistency_score, ROUND(AVG(ts.uniqueness_score),2) AS uniqueness_score, ROUND(AVG(ts.timeliness_score),2) AS timeliness_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.catalog cs ON ts.catalog_id = cs.catalog_id JOIN serverless_stable_jc9zgx_catalog.data_quality.schema s ON ts.schema_id = s.schema_id GROUP BY cs.catalog_name, s.schema_name ORDER BY overall_score ASC"
+      ]
+    },
+    {
+      "name": "catalog_table_grid",
+      "displayName": "Table Score Grid",
+      "queryLines": [
+        "SELECT t.table_name, s.schema_name, cs.catalog_name, t.is_critical, ts.overall_score, ts.completeness_score, ts.accuracy_score, ts.validity_score, ts.consistency_score, ts.uniqueness_score, ts.timeliness_score, ts.rules_failed FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_table t ON ts.table_id = t.table_id JOIN serverless_stable_jc9zgx_catalog.data_quality.schema s ON ts.schema_id = s.schema_id JOIN serverless_stable_jc9zgx_catalog.data_quality.catalog cs ON ts.catalog_id = cs.catalog_id ORDER BY ts.overall_score ASC"
+      ]
+    },
+    {
+      "name": "catalog_dim_failures",
+      "displayName": "Catalog Dimension Failures",
+      "queryLines": [
+        "SELECT ts.schema_name, ts.table_name, qd.dimension_name, COUNT(*) AS total_rules, SUM(CASE WHEN NOT crr.passed THEN 1 ELSE 0 END) AS failed_rules, ROUND(AVG(crr.weighted_score),2) AS avg_score, SUM(CASE WHEN crr.egregious_flag THEN 1 ELSE 0 END) AS egregious_count FROM serverless_stable_jc9zgx_catalog.data_quality.column_rule_result crr JOIN serverless_stable_jc9zgx_catalog.data_quality.column_rule_assignment cra ON crr.assignment_id = cra.assignment_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_column dc ON cra.column_id = dc.column_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_rule dr ON cra.rule_id = dr.rule_id JOIN serverless_stable_jc9zgx_catalog.data_quality.quality_dimension qd ON dr.dimension_id = qd.dimension_id JOIN serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts ON dc.table_id = ts.table_id JOIN serverless_stable_jc9zgx_catalog.data_quality.v_latest_run lr ON crr.run_id = lr.latest_run_id GROUP BY ts.schema_name, ts.table_name, qd.dimension_name"
+      ]
+    },
+    {
+      "name": "completeness_failures",
+      "displayName": "Completeness Failures",
+      "queryLines": [
+        "SELECT dc.column_name, t.table_name, crr.failure_rate, crr.failed_records, crr.total_records, crr.weighted_score FROM serverless_stable_jc9zgx_catalog.data_quality.column_rule_result crr JOIN serverless_stable_jc9zgx_catalog.data_quality.column_rule_assignment cra ON crr.assignment_id = cra.assignment_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_column dc ON cra.column_id = dc.column_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_table t ON dc.table_id = t.table_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_rule dr ON cra.rule_id = dr.rule_id JOIN serverless_stable_jc9zgx_catalog.data_quality.quality_dimension qd ON dr.dimension_id = qd.dimension_id JOIN serverless_stable_jc9zgx_catalog.data_quality.v_latest_run lr ON crr.run_id = lr.latest_run_id WHERE qd.dimension_name = 'Completeness' AND NOT crr.passed ORDER BY crr.weighted_score ASC"
+      ]
+    },
+    {
+      "name": "validity_failures",
+      "displayName": "Validity Failures",
+      "queryLines": [
+        "SELECT dc.column_name, t.table_name, dr.rule_type, crr.failed_records, crr.failure_rate, crr.executed_rule_sql, crr.weighted_score FROM serverless_stable_jc9zgx_catalog.data_quality.column_rule_result crr JOIN serverless_stable_jc9zgx_catalog.data_quality.column_rule_assignment cra ON crr.assignment_id = cra.assignment_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_column dc ON cra.column_id = dc.column_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_table t ON dc.table_id = t.table_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_rule dr ON cra.rule_id = dr.rule_id JOIN serverless_stable_jc9zgx_catalog.data_quality.quality_dimension qd ON dr.dimension_id = qd.dimension_id JOIN serverless_stable_jc9zgx_catalog.data_quality.v_latest_run lr ON crr.run_id = lr.latest_run_id WHERE qd.dimension_name = 'Validity' AND NOT crr.passed ORDER BY crr.weighted_score ASC"
+      ]
+    },
+    {
+      "name": "uniqueness_failures_keys",
+      "displayName": "Uniqueness Failures on Key Columns",
+      "queryLines": [
+        "SELECT dc.column_name, t.table_name, crr.failure_rate, crr.weighted_score, dc.is_primary_key, dc.is_foreign_key FROM serverless_stable_jc9zgx_catalog.data_quality.column_rule_result crr JOIN serverless_stable_jc9zgx_catalog.data_quality.column_rule_assignment cra ON crr.assignment_id = cra.assignment_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_column dc ON cra.column_id = dc.column_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_table t ON dc.table_id = t.table_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_rule dr ON cra.rule_id = dr.rule_id JOIN serverless_stable_jc9zgx_catalog.data_quality.quality_dimension qd ON dr.dimension_id = qd.dimension_id JOIN serverless_stable_jc9zgx_catalog.data_quality.v_latest_run lr ON crr.run_id = lr.latest_run_id WHERE qd.dimension_name = 'Uniqueness' AND NOT crr.passed AND (dc.is_primary_key = true OR dc.is_foreign_key = true) ORDER BY crr.weighted_score ASC"
+      ]
+    },
+    {
+      "name": "table_col_rule_detail",
+      "displayName": "Table Column Rule Detail",
+      "queryLines": [
+        "SELECT dc.column_name, dc.data_type, dc.is_primary_key, dc.is_foreign_key, qd.dimension_name, dr.rule_name, dr.rule_type, cra.threshold_value, crr.passed, crr.total_records, crr.failed_records, crr.failure_rate, crr.raw_score, crr.weighted_score, crr.egregious_flag, crr.executed_rule_sql, crr.result_detail, crr.evaluated_at, t.table_name FROM serverless_stable_jc9zgx_catalog.data_quality.column_rule_result crr JOIN serverless_stable_jc9zgx_catalog.data_quality.column_rule_assignment cra ON crr.assignment_id = cra.assignment_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_column dc ON cra.column_id = dc.column_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_table t ON dc.table_id = t.table_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_rule dr ON cra.rule_id = dr.rule_id JOIN serverless_stable_jc9zgx_catalog.data_quality.quality_dimension qd ON dr.dimension_id = qd.dimension_id JOIN serverless_stable_jc9zgx_catalog.data_quality.v_latest_run lr ON crr.run_id = lr.latest_run_id ORDER BY crr.weighted_score ASC"
+      ]
+    },
+    {
+      "name": "table_trend",
+      "displayName": "Table Score Trend",
+      "queryLines": [
+        "SELECT t.table_name, r.run_timestamp, ROUND(AVG(crr.weighted_score),2) AS overall_score, ROUND(AVG(CASE WHEN qd.dimension_name='Completeness' THEN crr.weighted_score END),2) AS completeness_score, ROUND(AVG(CASE WHEN qd.dimension_name='Accuracy' THEN crr.weighted_score END),2) AS accuracy_score, ROUND(AVG(CASE WHEN qd.dimension_name='Validity' THEN crr.weighted_score END),2) AS validity_score, ROUND(AVG(CASE WHEN qd.dimension_name='Consistency' THEN crr.weighted_score END),2) AS consistency_score, ROUND(AVG(CASE WHEN qd.dimension_name='Uniqueness' THEN crr.weighted_score END),2) AS uniqueness_score, ROUND(AVG(CASE WHEN qd.dimension_name='Timeliness' THEN crr.weighted_score END),2) AS timeliness_score FROM serverless_stable_jc9zgx_catalog.data_quality.column_rule_result crr JOIN serverless_stable_jc9zgx_catalog.data_quality.column_rule_assignment cra ON crr.assignment_id = cra.assignment_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_column dc ON cra.column_id = dc.column_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_table t ON dc.table_id = t.table_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_rule dr ON cra.rule_id = dr.rule_id JOIN serverless_stable_jc9zgx_catalog.data_quality.quality_dimension qd ON dr.dimension_id = qd.dimension_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_run r ON crr.run_id = r.run_id GROUP BY t.table_name, r.run_timestamp ORDER BY r.run_timestamp"
+      ]
+    },
+    {
+      "name": "table_scores_all",
+      "displayName": "All Table Scores",
+      "queryLines": [
+        "SELECT t.table_name, ts.overall_score, ts.completeness_score, ts.accuracy_score, ts.validity_score, ts.consistency_score, ts.uniqueness_score, ts.timeliness_score, t.is_critical, ts.effective_threshold_min, ts.effective_threshold_warning FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_table t ON ts.table_id = t.table_id ORDER BY ts.overall_score ASC"
+      ]
+    },
+    {
+      "name": "rule_library",
+      "displayName": "Rule Library",
+      "queryLines": [
+        "SELECT dr.rule_id, dr.rule_name, dr.rule_description, dr.rule_type, dr.rule_status, dr.version, dr.is_system_rule, dr.default_severity_weight, dr.created_by, dr.rule_sql, qd.dimension_name, rc.category_name, COUNT(cra.assignment_id) AS times_deployed, ROUND(AVG(CASE WHEN crr.run_id IS NOT NULL THEN crr.failure_rate END),4) AS avg_failure_rate FROM serverless_stable_jc9zgx_catalog.data_quality.dq_rule dr JOIN serverless_stable_jc9zgx_catalog.data_quality.quality_dimension qd ON dr.dimension_id = qd.dimension_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_rule_category rc ON dr.category_id = rc.category_id LEFT JOIN serverless_stable_jc9zgx_catalog.data_quality.column_rule_assignment cra ON dr.rule_id = cra.rule_id LEFT JOIN serverless_stable_jc9zgx_catalog.data_quality.column_rule_result crr ON cra.assignment_id = crr.assignment_id GROUP BY dr.rule_id, dr.rule_name, dr.rule_description, dr.rule_type, dr.rule_status, dr.version, dr.is_system_rule, dr.default_severity_weight, dr.created_by, dr.rule_sql, qd.dimension_name, rc.category_name ORDER BY times_deployed DESC"
+      ]
+    },
+    {
+      "name": "rules_by_category",
+      "displayName": "Rules by Category",
+      "queryLines": [
+        "SELECT rc.category_name, qd.dimension_name, COUNT(*) AS rule_count FROM serverless_stable_jc9zgx_catalog.data_quality.dq_rule dr JOIN serverless_stable_jc9zgx_catalog.data_quality.quality_dimension qd ON dr.dimension_id = qd.dimension_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_rule_category rc ON dr.category_id = rc.category_id GROUP BY rc.category_name, qd.dimension_name ORDER BY rule_count DESC"
+      ]
+    },
+    {
+      "name": "rules_by_dimension",
+      "displayName": "Rules by Dimension",
+      "queryLines": [
+        "SELECT qd.dimension_name, COUNT(*) AS rule_count FROM serverless_stable_jc9zgx_catalog.data_quality.dq_rule dr JOIN serverless_stable_jc9zgx_catalog.data_quality.quality_dimension qd ON dr.dimension_id = qd.dimension_id GROUP BY qd.dimension_name"
+      ]
+    },
+    {
+      "name": "rules_highest_failure",
+      "displayName": "Rules with Highest Failure Rates",
+      "queryLines": [
+        "SELECT dr.rule_name, ROUND(AVG(crr.failure_rate),4) AS avg_failure_rate, COUNT(*) AS assignments FROM serverless_stable_jc9zgx_catalog.data_quality.column_rule_result crr JOIN serverless_stable_jc9zgx_catalog.data_quality.column_rule_assignment cra ON crr.assignment_id = cra.assignment_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_rule dr ON cra.rule_id = dr.rule_id JOIN serverless_stable_jc9zgx_catalog.data_quality.v_latest_run lr ON crr.run_id = lr.latest_run_id GROUP BY dr.rule_name ORDER BY avg_failure_rate DESC LIMIT 10"
+      ]
+    },
+    {
+      "name": "unmonitored_tables",
+      "displayName": "Unmonitored Tables",
+      "queryLines": [
+        "SELECT t.table_name, s.schema_name, cs.catalog_name, bo.owner_name FROM serverless_stable_jc9zgx_catalog.data_quality.dq_table t JOIN serverless_stable_jc9zgx_catalog.data_quality.schema s ON t.schema_id = s.schema_id JOIN serverless_stable_jc9zgx_catalog.data_quality.catalog cs ON s.catalog_id = cs.catalog_id LEFT JOIN serverless_stable_jc9zgx_catalog.data_quality.business_owner bo ON t.owner_id = bo.owner_id LEFT JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_column dc ON t.table_id = dc.table_id LEFT JOIN serverless_stable_jc9zgx_catalog.data_quality.column_rule_assignment cra ON dc.column_id = cra.column_id WHERE cra.assignment_id IS NULL"
+      ]
+    },
+    {
+      "name": "org_dim_scores",
+      "displayName": "Org Dimension Scores",
+      "queryLines": [
+        "SELECT 'Completeness' AS dimension, completeness_score AS score FROM serverless_stable_jc9zgx_catalog.data_quality.v_org_score_latest UNION ALL SELECT 'Accuracy', accuracy_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_org_score_latest UNION ALL SELECT 'Validity', validity_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_org_score_latest UNION ALL SELECT 'Consistency', consistency_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_org_score_latest UNION ALL SELECT 'Uniqueness', uniqueness_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_org_score_latest UNION ALL SELECT 'Timeliness', timeliness_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_org_score_latest"
+      ]
+    },
+    {
+      "name": "org_trend_unpivot",
+      "displayName": "Org Trend Unpivoted",
+      "queryLines": [
+        "SELECT run_timestamp, 'Overall' AS dimension, overall_score AS score FROM (SELECT dst.run_timestamp, ROUND(AVG(dst.overall_score),2) AS overall_score, ROUND(AVG(dst.completeness_score),2) AS completeness_score, ROUND(AVG(dst.accuracy_score),2) AS accuracy_score, ROUND(AVG(dst.validity_score),2) AS validity_score, ROUND(AVG(dst.consistency_score),2) AS consistency_score, ROUND(AVG(dst.uniqueness_score),2) AS uniqueness_score, ROUND(AVG(dst.timeliness_score),2) AS timeliness_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_domain_score_trend dst GROUP BY dst.run_timestamp ORDER BY dst.run_timestamp) UNION ALL SELECT run_timestamp, 'Completeness', completeness_score FROM (SELECT dst.run_timestamp, ROUND(AVG(dst.overall_score),2) AS overall_score, ROUND(AVG(dst.completeness_score),2) AS completeness_score, ROUND(AVG(dst.accuracy_score),2) AS accuracy_score, ROUND(AVG(dst.validity_score),2) AS validity_score, ROUND(AVG(dst.consistency_score),2) AS consistency_score, ROUND(AVG(dst.uniqueness_score),2) AS uniqueness_score, ROUND(AVG(dst.timeliness_score),2) AS timeliness_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_domain_score_trend dst GROUP BY dst.run_timestamp ORDER BY dst.run_timestamp) UNION ALL SELECT run_timestamp, 'Accuracy', accuracy_score FROM (SELECT dst.run_timestamp, ROUND(AVG(dst.overall_score),2) AS overall_score, ROUND(AVG(dst.completeness_score),2) AS completeness_score, ROUND(AVG(dst.accuracy_score),2) AS accuracy_score, ROUND(AVG(dst.validity_score),2) AS validity_score, ROUND(AVG(dst.consistency_score),2) AS consistency_score, ROUND(AVG(dst.uniqueness_score),2) AS uniqueness_score, ROUND(AVG(dst.timeliness_score),2) AS timeliness_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_domain_score_trend dst GROUP BY dst.run_timestamp ORDER BY dst.run_timestamp) UNION ALL SELECT run_timestamp, 'Validity', validity_score FROM (SELECT dst.run_timestamp, ROUND(AVG(dst.overall_score),2) AS overall_score, ROUND(AVG(dst.completeness_score),2) AS completeness_score, ROUND(AVG(dst.accuracy_score),2) AS accuracy_score, ROUND(AVG(dst.validity_score),2) AS validity_score, ROUND(AVG(dst.consistency_score),2) AS consistency_score, ROUND(AVG(dst.uniqueness_score),2) AS uniqueness_score, ROUND(AVG(dst.timeliness_score),2) AS timeliness_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_domain_score_trend dst GROUP BY dst.run_timestamp ORDER BY dst.run_timestamp) UNION ALL SELECT run_timestamp, 'Consistency', consistency_score FROM (SELECT dst.run_timestamp, ROUND(AVG(dst.overall_score),2) AS overall_score, ROUND(AVG(dst.completeness_score),2) AS completeness_score, ROUND(AVG(dst.accuracy_score),2) AS accuracy_score, ROUND(AVG(dst.validity_score),2) AS validity_score, ROUND(AVG(dst.consistency_score),2) AS consistency_score, ROUND(AVG(dst.uniqueness_score),2) AS uniqueness_score, ROUND(AVG(dst.timeliness_score),2) AS timeliness_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_domain_score_trend dst GROUP BY dst.run_timestamp ORDER BY dst.run_timestamp) UNION ALL SELECT run_timestamp, 'Uniqueness', uniqueness_score FROM (SELECT dst.run_timestamp, ROUND(AVG(dst.overall_score),2) AS overall_score, ROUND(AVG(dst.completeness_score),2) AS completeness_score, ROUND(AVG(dst.accuracy_score),2) AS accuracy_score, ROUND(AVG(dst.validity_score),2) AS validity_score, ROUND(AVG(dst.consistency_score),2) AS consistency_score, ROUND(AVG(dst.uniqueness_score),2) AS uniqueness_score, ROUND(AVG(dst.timeliness_score),2) AS timeliness_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_domain_score_trend dst GROUP BY dst.run_timestamp ORDER BY dst.run_timestamp) UNION ALL SELECT run_timestamp, 'Timeliness', timeliness_score FROM (SELECT dst.run_timestamp, ROUND(AVG(dst.overall_score),2) AS overall_score, ROUND(AVG(dst.completeness_score),2) AS completeness_score, ROUND(AVG(dst.accuracy_score),2) AS accuracy_score, ROUND(AVG(dst.validity_score),2) AS validity_score, ROUND(AVG(dst.consistency_score),2) AS consistency_score, ROUND(AVG(dst.uniqueness_score),2) AS uniqueness_score, ROUND(AVG(dst.timeliness_score),2) AS timeliness_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_domain_score_trend dst GROUP BY dst.run_timestamp ORDER BY dst.run_timestamp)"
+      ]
+    },
+    {
+      "name": "domain_passfail_unpivot",
+      "displayName": "Domain Pass/Fail Unpivoted",
+      "queryLines": [
+        "SELECT d.domain_name, 'Passed' AS status, SUM(CASE WHEN crr.passed THEN 1 ELSE 0 END) AS rule_count FROM serverless_stable_jc9zgx_catalog.data_quality.column_rule_result crr JOIN serverless_stable_jc9zgx_catalog.data_quality.column_rule_assignment cra ON crr.assignment_id = cra.assignment_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_column dc ON cra.column_id = dc.column_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_table t ON dc.table_id = t.table_id JOIN serverless_stable_jc9zgx_catalog.data_quality.data_domain d ON t.domain_id = d.domain_id JOIN serverless_stable_jc9zgx_catalog.data_quality.v_latest_run lr ON crr.run_id = lr.latest_run_id GROUP BY d.domain_name UNION ALL SELECT d.domain_name, 'Failed' AS status, SUM(CASE WHEN NOT crr.passed THEN 1 ELSE 0 END) AS rule_count FROM serverless_stable_jc9zgx_catalog.data_quality.column_rule_result crr JOIN serverless_stable_jc9zgx_catalog.data_quality.column_rule_assignment cra ON crr.assignment_id = cra.assignment_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_column dc ON cra.column_id = dc.column_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_table t ON dc.table_id = t.table_id JOIN serverless_stable_jc9zgx_catalog.data_quality.data_domain d ON t.domain_id = d.domain_id JOIN serverless_stable_jc9zgx_catalog.data_quality.v_latest_run lr ON crr.run_id = lr.latest_run_id GROUP BY d.domain_name"
+      ]
+    },
+    {
+      "name": "domain_trend_unpivot",
+      "displayName": "Domain Trend Unpivoted",
+      "queryLines": [
+        "SELECT d.domain_name, dst.run_timestamp, 'Overall' AS dimension, dst.overall_score AS score FROM serverless_stable_jc9zgx_catalog.data_quality.v_domain_score_trend dst JOIN serverless_stable_jc9zgx_catalog.data_quality.data_domain d ON dst.domain_id = d.domain_id UNION ALL SELECT d.domain_name, dst.run_timestamp, 'Completeness', dst.completeness_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_domain_score_trend dst JOIN serverless_stable_jc9zgx_catalog.data_quality.data_domain d ON dst.domain_id = d.domain_id UNION ALL SELECT d.domain_name, dst.run_timestamp, 'Accuracy', dst.accuracy_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_domain_score_trend dst JOIN serverless_stable_jc9zgx_catalog.data_quality.data_domain d ON dst.domain_id = d.domain_id UNION ALL SELECT d.domain_name, dst.run_timestamp, 'Validity', dst.validity_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_domain_score_trend dst JOIN serverless_stable_jc9zgx_catalog.data_quality.data_domain d ON dst.domain_id = d.domain_id UNION ALL SELECT d.domain_name, dst.run_timestamp, 'Consistency', dst.consistency_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_domain_score_trend dst JOIN serverless_stable_jc9zgx_catalog.data_quality.data_domain d ON dst.domain_id = d.domain_id UNION ALL SELECT d.domain_name, dst.run_timestamp, 'Uniqueness', dst.uniqueness_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_domain_score_trend dst JOIN serverless_stable_jc9zgx_catalog.data_quality.data_domain d ON dst.domain_id = d.domain_id UNION ALL SELECT d.domain_name, dst.run_timestamp, 'Timeliness', dst.timeliness_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_domain_score_trend dst JOIN serverless_stable_jc9zgx_catalog.data_quality.data_domain d ON dst.domain_id = d.domain_id"
+      ]
+    },
+    {
+      "name": "owner_dim_scores",
+      "displayName": "Owner Dimension Scores",
+      "queryLines": [
+        "SELECT bo.owner_name, 'Completeness' AS dimension, ROUND(AVG(ts.completeness_score),2) AS score FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.business_owner bo ON ts.owner_id = bo.owner_id GROUP BY bo.owner_name UNION ALL SELECT bo.owner_name, 'Accuracy', ROUND(AVG(ts.accuracy_score),2) FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.business_owner bo ON ts.owner_id = bo.owner_id GROUP BY bo.owner_name UNION ALL SELECT bo.owner_name, 'Validity', ROUND(AVG(ts.validity_score),2) FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.business_owner bo ON ts.owner_id = bo.owner_id GROUP BY bo.owner_name UNION ALL SELECT bo.owner_name, 'Consistency', ROUND(AVG(ts.consistency_score),2) FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.business_owner bo ON ts.owner_id = bo.owner_id GROUP BY bo.owner_name UNION ALL SELECT bo.owner_name, 'Uniqueness', ROUND(AVG(ts.uniqueness_score),2) FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.business_owner bo ON ts.owner_id = bo.owner_id GROUP BY bo.owner_name UNION ALL SELECT bo.owner_name, 'Timeliness', ROUND(AVG(ts.timeliness_score),2) FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.business_owner bo ON ts.owner_id = bo.owner_id GROUP BY bo.owner_name"
+      ]
+    },
+    {
+      "name": "catalog_dim_unpivot",
+      "displayName": "Catalog Dimension Scores",
+      "queryLines": [
+        "SELECT cs.catalog_name, 'Completeness' AS dimension, ROUND(AVG(ts.completeness_score),2) AS score FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.catalog cs ON ts.catalog_id = cs.catalog_id GROUP BY cs.catalog_name UNION ALL SELECT cs.catalog_name, 'Accuracy', ROUND(AVG(ts.accuracy_score),2) FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.catalog cs ON ts.catalog_id = cs.catalog_id GROUP BY cs.catalog_name UNION ALL SELECT cs.catalog_name, 'Validity', ROUND(AVG(ts.validity_score),2) FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.catalog cs ON ts.catalog_id = cs.catalog_id GROUP BY cs.catalog_name UNION ALL SELECT cs.catalog_name, 'Consistency', ROUND(AVG(ts.consistency_score),2) FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.catalog cs ON ts.catalog_id = cs.catalog_id GROUP BY cs.catalog_name UNION ALL SELECT cs.catalog_name, 'Uniqueness', ROUND(AVG(ts.uniqueness_score),2) FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.catalog cs ON ts.catalog_id = cs.catalog_id GROUP BY cs.catalog_name UNION ALL SELECT cs.catalog_name, 'Timeliness', ROUND(AVG(ts.timeliness_score),2) FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.catalog cs ON ts.catalog_id = cs.catalog_id GROUP BY cs.catalog_name"
+      ]
+    },
+    {
+      "name": "table_dim_unpivot",
+      "displayName": "Table Dimension Scores",
+      "queryLines": [
+        "SELECT t.table_name, 'Completeness' AS dimension, ts.completeness_score AS score FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_table t ON ts.table_id = t.table_id UNION ALL SELECT t.table_name, 'Accuracy', ts.accuracy_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_table t ON ts.table_id = t.table_id UNION ALL SELECT t.table_name, 'Validity', ts.validity_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_table t ON ts.table_id = t.table_id UNION ALL SELECT t.table_name, 'Consistency', ts.consistency_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_table t ON ts.table_id = t.table_id UNION ALL SELECT t.table_name, 'Uniqueness', ts.uniqueness_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_table t ON ts.table_id = t.table_id UNION ALL SELECT t.table_name, 'Timeliness', ts.timeliness_score FROM serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_table t ON ts.table_id = t.table_id"
+      ]
+    },
+    {
+      "name": "table_trend_unpivot",
+      "displayName": "Table Trend Unpivoted",
+      "queryLines": [
+        "SELECT t.table_name, r.run_timestamp, 'Overall' AS dimension, ROUND(AVG(crr.weighted_score),2) AS score FROM serverless_stable_jc9zgx_catalog.data_quality.column_rule_result crr JOIN serverless_stable_jc9zgx_catalog.data_quality.column_rule_assignment cra ON crr.assignment_id = cra.assignment_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_column dc ON cra.column_id = dc.column_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_table t ON dc.table_id = t.table_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_rule dr ON cra.rule_id = dr.rule_id JOIN serverless_stable_jc9zgx_catalog.data_quality.quality_dimension qd ON dr.dimension_id = qd.dimension_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_run r ON crr.run_id = r.run_id GROUP BY t.table_name, r.run_timestamp UNION ALL SELECT t.table_name, r.run_timestamp, 'Completeness', ROUND(AVG(CASE WHEN qd.dimension_name='Completeness' THEN crr.weighted_score END),2) FROM serverless_stable_jc9zgx_catalog.data_quality.column_rule_result crr JOIN serverless_stable_jc9zgx_catalog.data_quality.column_rule_assignment cra ON crr.assignment_id = cra.assignment_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_column dc ON cra.column_id = dc.column_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_table t ON dc.table_id = t.table_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_rule dr ON cra.rule_id = dr.rule_id JOIN serverless_stable_jc9zgx_catalog.data_quality.quality_dimension qd ON dr.dimension_id = qd.dimension_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_run r ON crr.run_id = r.run_id GROUP BY t.table_name, r.run_timestamp UNION ALL SELECT t.table_name, r.run_timestamp, 'Accuracy', ROUND(AVG(CASE WHEN qd.dimension_name='Accuracy' THEN crr.weighted_score END),2) FROM serverless_stable_jc9zgx_catalog.data_quality.column_rule_result crr JOIN serverless_stable_jc9zgx_catalog.data_quality.column_rule_assignment cra ON crr.assignment_id = cra.assignment_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_column dc ON cra.column_id = dc.column_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_table t ON dc.table_id = t.table_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_rule dr ON cra.rule_id = dr.rule_id JOIN serverless_stable_jc9zgx_catalog.data_quality.quality_dimension qd ON dr.dimension_id = qd.dimension_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_run r ON crr.run_id = r.run_id GROUP BY t.table_name, r.run_timestamp"
+      ]
+    },
+    {
+      "name": "worst_columns",
+      "displayName": "Worst Columns",
+      "queryLines": [
+        "SELECT dc.column_name, t.table_name, MIN(crr.weighted_score) AS min_score FROM serverless_stable_jc9zgx_catalog.data_quality.column_rule_result crr JOIN serverless_stable_jc9zgx_catalog.data_quality.column_rule_assignment cra ON crr.assignment_id = cra.assignment_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_column dc ON cra.column_id = dc.column_id JOIN serverless_stable_jc9zgx_catalog.data_quality.dq_table t ON dc.table_id = t.table_id JOIN serverless_stable_jc9zgx_catalog.data_quality.v_latest_run lr ON crr.run_id = lr.latest_run_id GROUP BY dc.column_name, t.table_name ORDER BY min_score ASC LIMIT 10"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "05d35908",
+      "displayName": "Organization Overview",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layout": [
+        {
+          "widget": {
+            "name": "5139155d",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "org_kpi_latest",
+                  "fields": [
+                    {
+                      "name": "overall_score",
+                      "expression": "`overall_score`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "overall_score",
+                  "displayName": "Enterprise DQ Score"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Enterprise DQ Score"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "c5780d2a",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "tables_below_thresh",
+                  "fields": [
+                    {
+                      "name": "cnt",
+                      "expression": "`cnt`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "cnt",
+                  "displayName": "Tables Below Threshold"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Tables Below Threshold"
+              }
+            }
+          },
+          "position": {
+            "x": 1,
+            "y": 0,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "387848c5",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "pct_monitored",
+                  "fields": [
+                    {
+                      "name": "pct_assets_monitored",
+                      "expression": "`pct_assets_monitored`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "pct_assets_monitored",
+                  "displayName": "% Assets Monitored"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "% Assets Monitored"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 0,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "0b300f00",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "org_kpi_latest",
+                  "fields": [
+                    {
+                      "name": "total_tables",
+                      "expression": "`total_tables`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_tables",
+                  "displayName": "Total Tables Monitored"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Total Tables Monitored"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 0,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "fdb986ba",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "org_kpi_latest",
+                  "fields": [
+                    {
+                      "name": "total_domains",
+                      "expression": "`total_domains`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_domains",
+                  "displayName": "Total Domains"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Total Domains"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 0,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "a869a873",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "org_dim_scores",
+                  "fields": [
+                    {
+                      "name": "dimension",
+                      "expression": "`dimension`"
+                    },
+                    {
+                      "name": "score",
+                      "expression": "`score`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "dimension",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "dimension"
+                },
+                "y": {
+                  "fieldName": "score",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "score"
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Score by Dimension"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "8907773a",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "domain_scores_latest",
+                  "fields": [
+                    {
+                      "name": "domain_name",
+                      "expression": "`domain_name`"
+                    },
+                    {
+                      "name": "overall_score",
+                      "expression": "`overall_score`"
+                    },
+                    {
+                      "name": "completeness_score",
+                      "expression": "`completeness_score`"
+                    },
+                    {
+                      "name": "accuracy_score",
+                      "expression": "`accuracy_score`"
+                    },
+                    {
+                      "name": "validity_score",
+                      "expression": "`validity_score`"
+                    },
+                    {
+                      "name": "consistency_score",
+                      "expression": "`consistency_score`"
+                    },
+                    {
+                      "name": "uniqueness_score",
+                      "expression": "`uniqueness_score`"
+                    },
+                    {
+                      "name": "timeliness_score",
+                      "expression": "`timeliness_score`"
+                    },
+                    {
+                      "name": "tables_below_threshold",
+                      "expression": "`tables_below_threshold`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "domain_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Domain",
+                    "displayName": "Domain",
+                    "order": 100000,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "overall_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Overall",
+                    "displayName": "Overall",
+                    "order": 100001,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "completeness_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Complete",
+                    "displayName": "Complete",
+                    "order": 100002,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "accuracy_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Accuracy",
+                    "displayName": "Accuracy",
+                    "order": 100003,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "validity_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Validity",
+                    "displayName": "Validity",
+                    "order": 100004,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "consistency_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Consist",
+                    "displayName": "Consist",
+                    "order": 100005,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "uniqueness_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Unique",
+                    "displayName": "Unique",
+                    "order": 100006,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "timeliness_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Timely",
+                    "displayName": "Timely",
+                    "order": 100007,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "tables_below_threshold",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "title": "Below Thresh",
+                    "displayName": "Below Thresh",
+                    "order": 100008,
+                    "alignContent": "right"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Domain Score Heatmap"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 2,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "9d9ba2b7",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "org_trend_unpivot",
+                  "fields": [
+                    {
+                      "name": "run_timestamp",
+                      "expression": "`run_timestamp`"
+                    },
+                    {
+                      "name": "score",
+                      "expression": "`score`"
+                    },
+                    {
+                      "name": "dimension",
+                      "expression": "`dimension`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "run_timestamp",
+                  "scale": {
+                    "type": "temporal"
+                  },
+                  "displayName": "run_timestamp"
+                },
+                "y": {
+                  "fieldName": "score",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "score"
+                },
+                "color": {
+                  "fieldName": "dimension",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "dimension"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Enterprise 30-Day Trend"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 6,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "8993776f",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "top10_egregious",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "domain_name",
+                      "expression": "`domain_name`"
+                    },
+                    {
+                      "name": "catalog_name",
+                      "expression": "`catalog_name`"
+                    },
+                    {
+                      "name": "overall_score",
+                      "expression": "`overall_score`"
+                    },
+                    {
+                      "name": "egregious_count",
+                      "expression": "`egregious_count`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "table_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Table",
+                    "displayName": "Table",
+                    "order": 100000,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "domain_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Domain",
+                    "displayName": "Domain",
+                    "order": 100001,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "catalog_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Catalog",
+                    "displayName": "Catalog",
+                    "order": 100002,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "overall_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Score",
+                    "displayName": "Score",
+                    "order": 100003,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "egregious_count",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "title": "Egregious",
+                    "displayName": "Egregious",
+                    "order": 100004,
+                    "alignContent": "right"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Top 10 Egregious Tables"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 10,
+            "width": 6,
+            "height": 4
+          }
+        }
+      ]
+    },
+    {
+      "name": "790afa18",
+      "displayName": "Data Domain",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layout": [
+        {
+          "widget": {
+            "name": "421de30d",
+            "queries": [
+              {
+                "name": "filter_421de30d_domain_name",
+                "query": {
+                  "datasetName": "domain_detail",
+                  "fields": [
+                    {
+                      "name": "domain_name",
+                      "expression": "`domain_name`"
+                    },
+                    {
+                      "name": "domain_name_assoc",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "domain_name",
+                    "displayName": "domain_name",
+                    "queryName": "filter_421de30d_domain_name"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Domain"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "3d2aab64",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "domain_detail",
+                  "fields": [
+                    {
+                      "name": "catalog_name",
+                      "expression": "`catalog_name`"
+                    },
+                    {
+                      "name": "overall_score",
+                      "expression": "`overall_score`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "catalog_name",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "catalog_name"
+                },
+                "y": {
+                  "fieldName": "overall_score",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "overall_score"
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Catalog Score Comparison"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "42ddebc7",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "domain_passfail_unpivot",
+                  "fields": [
+                    {
+                      "name": "rule_count",
+                      "expression": "SUM(`rule_count`)"
+                    },
+                    {
+                      "name": "status",
+                      "expression": "`status`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "pie",
+              "encodings": {
+                "angle": {
+                  "fieldName": "rule_count",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "rule_count"
+                },
+                "color": {
+                  "fieldName": "status",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "status"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Rule Pass/Fail Summary"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 2,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "ecbb57af",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "domain_trend_unpivot",
+                  "fields": [
+                    {
+                      "name": "run_timestamp",
+                      "expression": "`run_timestamp`"
+                    },
+                    {
+                      "name": "score",
+                      "expression": "`score`"
+                    },
+                    {
+                      "name": "dimension",
+                      "expression": "`dimension`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "run_timestamp",
+                  "scale": {
+                    "type": "temporal"
+                  },
+                  "displayName": "run_timestamp"
+                },
+                "y": {
+                  "fieldName": "score",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "score"
+                },
+                "color": {
+                  "fieldName": "dimension",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "dimension"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Domain 30-Day Trend by Dimension"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 6,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "6e1a69de",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "domain_critical_tables",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "schema_name",
+                      "expression": "`schema_name`"
+                    },
+                    {
+                      "name": "domain_name",
+                      "expression": "`domain_name`"
+                    },
+                    {
+                      "name": "overall_score",
+                      "expression": "`overall_score`"
+                    },
+                    {
+                      "name": "rules_failed",
+                      "expression": "`rules_failed`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "table_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Table",
+                    "displayName": "Table",
+                    "order": 100000,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "schema_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Schema",
+                    "displayName": "Schema",
+                    "order": 100001,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "domain_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Domain",
+                    "displayName": "Domain",
+                    "order": 100002,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "overall_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Score",
+                    "displayName": "Score",
+                    "order": 100003,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "rules_failed",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "title": "Rules Failed",
+                    "displayName": "Rules Failed",
+                    "order": 100004,
+                    "alignContent": "right"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Critical Tables at Risk"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 10,
+            "width": 6,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "a97ac68e",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "schema_scores",
+                  "fields": [
+                    {
+                      "name": "catalog_name",
+                      "expression": "`catalog_name`"
+                    },
+                    {
+                      "name": "schema_name",
+                      "expression": "`schema_name`"
+                    },
+                    {
+                      "name": "overall_score",
+                      "expression": "`overall_score`"
+                    },
+                    {
+                      "name": "completeness_score",
+                      "expression": "`completeness_score`"
+                    },
+                    {
+                      "name": "accuracy_score",
+                      "expression": "`accuracy_score`"
+                    },
+                    {
+                      "name": "validity_score",
+                      "expression": "`validity_score`"
+                    },
+                    {
+                      "name": "consistency_score",
+                      "expression": "`consistency_score`"
+                    },
+                    {
+                      "name": "uniqueness_score",
+                      "expression": "`uniqueness_score`"
+                    },
+                    {
+                      "name": "timeliness_score",
+                      "expression": "`timeliness_score`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "catalog_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Catalog",
+                    "displayName": "Catalog",
+                    "order": 100000,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "schema_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Schema",
+                    "displayName": "Schema",
+                    "order": 100001,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "overall_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Overall",
+                    "displayName": "Overall",
+                    "order": 100002,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "completeness_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Complete",
+                    "displayName": "Complete",
+                    "order": 100003,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "accuracy_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Accuracy",
+                    "displayName": "Accuracy",
+                    "order": 100004,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "validity_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Validity",
+                    "displayName": "Validity",
+                    "order": 100005,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "consistency_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Consist",
+                    "displayName": "Consist",
+                    "order": 100006,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "uniqueness_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Unique",
+                    "displayName": "Unique",
+                    "order": 100007,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "timeliness_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Timely",
+                    "displayName": "Timely",
+                    "order": 100008,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Failure Rate by Dimension (Schema Heatmap)"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 14,
+            "width": 6,
+            "height": 4
+          }
+        }
+      ]
+    },
+    {
+      "name": "1fd1ab97",
+      "displayName": "Business Owner",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layout": [
+        {
+          "widget": {
+            "name": "37e2100a",
+            "queries": [
+              {
+                "name": "filter_37e2100a_owner_name",
+                "query": {
+                  "datasetName": "owner_scores",
+                  "fields": [
+                    {
+                      "name": "owner_name",
+                      "expression": "`owner_name`"
+                    },
+                    {
+                      "name": "owner_name_assoc",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "owner_name",
+                    "displayName": "owner_name",
+                    "queryName": "filter_37e2100a_owner_name"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Business Owner"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "9003e3e8",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "owner_dim_scores",
+                  "fields": [
+                    {
+                      "name": "dimension",
+                      "expression": "`dimension`"
+                    },
+                    {
+                      "name": "score",
+                      "expression": "`score`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "dimension",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "dimension"
+                },
+                "y": {
+                  "fieldName": "score",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "score"
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "My Score by Dimension"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "df4d8ea3",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "owner_scores",
+                  "fields": [
+                    {
+                      "name": "owner_name",
+                      "expression": "`owner_name`"
+                    },
+                    {
+                      "name": "overall_score",
+                      "expression": "`overall_score`"
+                    },
+                    {
+                      "name": "table_count",
+                      "expression": "`table_count`"
+                    },
+                    {
+                      "name": "total_failures",
+                      "expression": "`total_failures`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "owner_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Owner",
+                    "displayName": "Owner",
+                    "order": 100000,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "overall_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Overall",
+                    "displayName": "Overall",
+                    "order": 100001,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "table_count",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "title": "Tables",
+                    "displayName": "Tables",
+                    "order": 100002,
+                    "alignContent": "right"
+                  },
+                  {
+                    "fieldName": "total_failures",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "title": "Failures",
+                    "displayName": "Failures",
+                    "order": 100003,
+                    "alignContent": "right"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Owner Score Summary"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 2,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "e208dbe7",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "owner_table_scores",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "domain_name",
+                      "expression": "`domain_name`"
+                    },
+                    {
+                      "name": "schema_name",
+                      "expression": "`schema_name`"
+                    },
+                    {
+                      "name": "overall_score",
+                      "expression": "`overall_score`"
+                    },
+                    {
+                      "name": "rules_failed",
+                      "expression": "`rules_failed`"
+                    },
+                    {
+                      "name": "egregious_count",
+                      "expression": "`egregious_count`"
+                    },
+                    {
+                      "name": "status_band",
+                      "expression": "`status_band`"
+                    },
+                    {
+                      "name": "owner_name",
+                      "expression": "`owner_name`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "table_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Table",
+                    "displayName": "Table",
+                    "order": 100000,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "domain_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Domain",
+                    "displayName": "Domain",
+                    "order": 100001,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "schema_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Schema",
+                    "displayName": "Schema",
+                    "order": 100002,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "overall_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Score",
+                    "displayName": "Score",
+                    "order": 100003,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "rules_failed",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "title": "Failed",
+                    "displayName": "Failed",
+                    "order": 100004,
+                    "alignContent": "right"
+                  },
+                  {
+                    "fieldName": "egregious_count",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "title": "Egregious",
+                    "displayName": "Egregious",
+                    "order": 100005,
+                    "alignContent": "right"
+                  },
+                  {
+                    "fieldName": "status_band",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Status",
+                    "displayName": "Status",
+                    "order": 100006,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "owner_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Owner",
+                    "displayName": "Owner",
+                    "order": 100007,
+                    "alignContent": "left"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Tables I Own - Score Summary"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 6,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "8e862c75",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "owner_below_threshold",
+                  "fields": [
+                    {
+                      "name": "owner_name",
+                      "expression": "`owner_name`"
+                    },
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "domain_name",
+                      "expression": "`domain_name`"
+                    },
+                    {
+                      "name": "overall_score",
+                      "expression": "`overall_score`"
+                    },
+                    {
+                      "name": "rules_failed",
+                      "expression": "`rules_failed`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "owner_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Owner",
+                    "displayName": "Owner",
+                    "order": 100000,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "table_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Table",
+                    "displayName": "Table",
+                    "order": 100001,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "domain_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Domain",
+                    "displayName": "Domain",
+                    "order": 100002,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "overall_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Score",
+                    "displayName": "Score",
+                    "order": 100003,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "rules_failed",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "title": "Failures",
+                    "displayName": "Failures",
+                    "order": 100004,
+                    "alignContent": "right"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Assets Below Threshold"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 11,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "22288cfc",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "owner_top_failing_cols",
+                  "fields": [
+                    {
+                      "name": "owner_name",
+                      "expression": "`owner_name`"
+                    },
+                    {
+                      "name": "column_name",
+                      "expression": "`column_name`"
+                    },
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "dimension_name",
+                      "expression": "`dimension_name`"
+                    },
+                    {
+                      "name": "weighted_score",
+                      "expression": "`weighted_score`"
+                    },
+                    {
+                      "name": "failure_rate",
+                      "expression": "`failure_rate`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "owner_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Owner",
+                    "displayName": "Owner",
+                    "order": 100000,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "column_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Column",
+                    "displayName": "Column",
+                    "order": 100001,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "table_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Table",
+                    "displayName": "Table",
+                    "order": 100002,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "dimension_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Dimension",
+                    "displayName": "Dimension",
+                    "order": 100003,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "weighted_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Score",
+                    "displayName": "Score",
+                    "order": 100004,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "failure_rate",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Failure Rate",
+                    "displayName": "Failure Rate",
+                    "order": 100005,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Top Failing Columns I Own"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 11,
+            "width": 3,
+            "height": 4
+          }
+        }
+      ]
+    },
+    {
+      "name": "d93508ba",
+      "displayName": "Catalog / Database",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layout": [
+        {
+          "widget": {
+            "name": "085faaf5",
+            "queries": [
+              {
+                "name": "filter_085faaf5_catalog_name",
+                "query": {
+                  "datasetName": "catalog_scores",
+                  "fields": [
+                    {
+                      "name": "catalog_name",
+                      "expression": "`catalog_name`"
+                    },
+                    {
+                      "name": "catalog_name_assoc",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "catalog_name",
+                    "displayName": "catalog_name",
+                    "queryName": "filter_085faaf5_catalog_name"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Catalog"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "49719e60",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "catalog_dim_unpivot",
+                  "fields": [
+                    {
+                      "name": "dimension",
+                      "expression": "`dimension`"
+                    },
+                    {
+                      "name": "score",
+                      "expression": "`score`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "dimension",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "dimension"
+                },
+                "y": {
+                  "fieldName": "score",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "score"
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Score by Dimension - Catalog"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "f8fd18b4",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "schema_scores",
+                  "fields": [
+                    {
+                      "name": "schema_name",
+                      "expression": "`schema_name`"
+                    },
+                    {
+                      "name": "overall_score",
+                      "expression": "`overall_score`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "schema_name",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "schema_name"
+                },
+                "y": {
+                  "fieldName": "overall_score",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "overall_score"
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Schema Score Comparison"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 2,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "a769376c",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "catalog_table_grid",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "schema_name",
+                      "expression": "`schema_name`"
+                    },
+                    {
+                      "name": "catalog_name",
+                      "expression": "`catalog_name`"
+                    },
+                    {
+                      "name": "is_critical",
+                      "expression": "`is_critical`"
+                    },
+                    {
+                      "name": "overall_score",
+                      "expression": "`overall_score`"
+                    },
+                    {
+                      "name": "completeness_score",
+                      "expression": "`completeness_score`"
+                    },
+                    {
+                      "name": "accuracy_score",
+                      "expression": "`accuracy_score`"
+                    },
+                    {
+                      "name": "validity_score",
+                      "expression": "`validity_score`"
+                    },
+                    {
+                      "name": "consistency_score",
+                      "expression": "`consistency_score`"
+                    },
+                    {
+                      "name": "uniqueness_score",
+                      "expression": "`uniqueness_score`"
+                    },
+                    {
+                      "name": "timeliness_score",
+                      "expression": "`timeliness_score`"
+                    },
+                    {
+                      "name": "rules_failed",
+                      "expression": "`rules_failed`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "table_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Table",
+                    "displayName": "Table",
+                    "order": 100000,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "schema_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Schema",
+                    "displayName": "Schema",
+                    "order": 100001,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "catalog_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Catalog",
+                    "displayName": "Catalog",
+                    "order": 100002,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "is_critical",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Critical",
+                    "displayName": "Critical",
+                    "order": 100003,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "overall_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Overall",
+                    "displayName": "Overall",
+                    "order": 100004,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "completeness_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Complete",
+                    "displayName": "Complete",
+                    "order": 100005,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "accuracy_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Accuracy",
+                    "displayName": "Accuracy",
+                    "order": 100006,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "validity_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Validity",
+                    "displayName": "Validity",
+                    "order": 100007,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "consistency_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Consist",
+                    "displayName": "Consist",
+                    "order": 100008,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "uniqueness_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Unique",
+                    "displayName": "Unique",
+                    "order": 100009,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "timeliness_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Timely",
+                    "displayName": "Timely",
+                    "order": 100010,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "rules_failed",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "title": "Failed",
+                    "displayName": "Failed",
+                    "order": 100011,
+                    "alignContent": "right"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Table Score Grid"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 6,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "facff3ed",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "completeness_failures",
+                  "fields": [
+                    {
+                      "name": "column_name",
+                      "expression": "`column_name`"
+                    },
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "failure_rate",
+                      "expression": "`failure_rate`"
+                    },
+                    {
+                      "name": "failed_records",
+                      "expression": "`failed_records`"
+                    },
+                    {
+                      "name": "total_records",
+                      "expression": "`total_records`"
+                    },
+                    {
+                      "name": "weighted_score",
+                      "expression": "`weighted_score`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "column_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Column",
+                    "displayName": "Column",
+                    "order": 100000,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "table_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Table",
+                    "displayName": "Table",
+                    "order": 100001,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "failure_rate",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Failure Rate",
+                    "displayName": "Failure Rate",
+                    "order": 100002,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "failed_records",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "title": "Failed Records",
+                    "displayName": "Failed Records",
+                    "order": 100003,
+                    "alignContent": "right"
+                  },
+                  {
+                    "fieldName": "total_records",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "title": "Total Records",
+                    "displayName": "Total Records",
+                    "order": 100004,
+                    "alignContent": "right"
+                  },
+                  {
+                    "fieldName": "weighted_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Score",
+                    "displayName": "Score",
+                    "order": 100005,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Completeness Failures"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 11,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "03ed6c12",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "validity_failures",
+                  "fields": [
+                    {
+                      "name": "column_name",
+                      "expression": "`column_name`"
+                    },
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "rule_type",
+                      "expression": "`rule_type`"
+                    },
+                    {
+                      "name": "failed_records",
+                      "expression": "`failed_records`"
+                    },
+                    {
+                      "name": "failure_rate",
+                      "expression": "`failure_rate`"
+                    },
+                    {
+                      "name": "weighted_score",
+                      "expression": "`weighted_score`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "column_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Column",
+                    "displayName": "Column",
+                    "order": 100000,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "table_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Table",
+                    "displayName": "Table",
+                    "order": 100001,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "rule_type",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Rule Type",
+                    "displayName": "Rule Type",
+                    "order": 100002,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "failed_records",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "title": "Failed Records",
+                    "displayName": "Failed Records",
+                    "order": 100003,
+                    "alignContent": "right"
+                  },
+                  {
+                    "fieldName": "failure_rate",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Failure Rate",
+                    "displayName": "Failure Rate",
+                    "order": 100004,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "weighted_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Score",
+                    "displayName": "Score",
+                    "order": 100005,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Validity Failures"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 11,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "3f3fc605",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "uniqueness_failures_keys",
+                  "fields": [
+                    {
+                      "name": "column_name",
+                      "expression": "`column_name`"
+                    },
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "failure_rate",
+                      "expression": "`failure_rate`"
+                    },
+                    {
+                      "name": "weighted_score",
+                      "expression": "`weighted_score`"
+                    },
+                    {
+                      "name": "is_primary_key",
+                      "expression": "`is_primary_key`"
+                    },
+                    {
+                      "name": "is_foreign_key",
+                      "expression": "`is_foreign_key`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "column_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Column",
+                    "displayName": "Column",
+                    "order": 100000,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "table_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Table",
+                    "displayName": "Table",
+                    "order": 100001,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "failure_rate",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Failure Rate",
+                    "displayName": "Failure Rate",
+                    "order": 100002,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "weighted_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Score",
+                    "displayName": "Score",
+                    "order": 100003,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "is_primary_key",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "PK",
+                    "displayName": "PK",
+                    "order": 100004,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "is_foreign_key",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "FK",
+                    "displayName": "FK",
+                    "order": 100005,
+                    "alignContent": "left"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Uniqueness Failures on Key Columns"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 15,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "e7371ab0",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "unmonitored_tables",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "schema_name",
+                      "expression": "`schema_name`"
+                    },
+                    {
+                      "name": "catalog_name",
+                      "expression": "`catalog_name`"
+                    },
+                    {
+                      "name": "owner_name",
+                      "expression": "`owner_name`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "table_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Table",
+                    "displayName": "Table",
+                    "order": 100000,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "schema_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Schema",
+                    "displayName": "Schema",
+                    "order": 100001,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "catalog_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Catalog",
+                    "displayName": "Catalog",
+                    "order": 100002,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "owner_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Owner",
+                    "displayName": "Owner",
+                    "order": 100003,
+                    "alignContent": "left"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Unmonitored Tables"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 15,
+            "width": 3,
+            "height": 4
+          }
+        }
+      ]
+    },
+    {
+      "name": "3c89bf4b",
+      "displayName": "Table Detail",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layout": [
+        {
+          "widget": {
+            "name": "1875b252",
+            "queries": [
+              {
+                "name": "filter_1875b252_table_name",
+                "query": {
+                  "datasetName": "table_scores_all",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "table_name_assoc",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "table_name",
+                    "displayName": "table_name",
+                    "queryName": "filter_1875b252_table_name"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Table"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "6914f3a2",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "table_dim_unpivot",
+                  "fields": [
+                    {
+                      "name": "dimension",
+                      "expression": "`dimension`"
+                    },
+                    {
+                      "name": "score",
+                      "expression": "`score`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "dimension",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "dimension"
+                },
+                "y": {
+                  "fieldName": "score",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "score"
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Score by Dimension - This Table"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "b6ef988d",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "table_trend_unpivot",
+                  "fields": [
+                    {
+                      "name": "run_timestamp",
+                      "expression": "`run_timestamp`"
+                    },
+                    {
+                      "name": "score",
+                      "expression": "`score`"
+                    },
+                    {
+                      "name": "dimension",
+                      "expression": "`dimension`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "run_timestamp",
+                  "scale": {
+                    "type": "temporal"
+                  },
+                  "displayName": "run_timestamp"
+                },
+                "y": {
+                  "fieldName": "score",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "score"
+                },
+                "color": {
+                  "fieldName": "dimension",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "dimension"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Table 30-Day Trend"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 2,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "3073e5f6",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "table_col_rule_detail",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "column_name",
+                      "expression": "`column_name`"
+                    },
+                    {
+                      "name": "data_type",
+                      "expression": "`data_type`"
+                    },
+                    {
+                      "name": "is_primary_key",
+                      "expression": "`is_primary_key`"
+                    },
+                    {
+                      "name": "is_foreign_key",
+                      "expression": "`is_foreign_key`"
+                    },
+                    {
+                      "name": "dimension_name",
+                      "expression": "`dimension_name`"
+                    },
+                    {
+                      "name": "rule_name",
+                      "expression": "`rule_name`"
+                    },
+                    {
+                      "name": "passed",
+                      "expression": "`passed`"
+                    },
+                    {
+                      "name": "weighted_score",
+                      "expression": "`weighted_score`"
+                    },
+                    {
+                      "name": "failure_rate",
+                      "expression": "`failure_rate`"
+                    },
+                    {
+                      "name": "egregious_flag",
+                      "expression": "`egregious_flag`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "table_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Table",
+                    "displayName": "Table",
+                    "order": 100000,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "column_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Column",
+                    "displayName": "Column",
+                    "order": 100001,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "data_type",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Data Type",
+                    "displayName": "Data Type",
+                    "order": 100002,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "is_primary_key",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "PK",
+                    "displayName": "PK",
+                    "order": 100003,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "is_foreign_key",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "FK",
+                    "displayName": "FK",
+                    "order": 100004,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "dimension_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Dimension",
+                    "displayName": "Dimension",
+                    "order": 100005,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "rule_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Rule",
+                    "displayName": "Rule",
+                    "order": 100006,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "passed",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Passed",
+                    "displayName": "Passed",
+                    "order": 100007,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "weighted_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Score",
+                    "displayName": "Score",
+                    "order": 100008,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "failure_rate",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Failure Rate",
+                    "displayName": "Failure Rate",
+                    "order": 100009,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "egregious_flag",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Egregious",
+                    "displayName": "Egregious",
+                    "order": 100010,
+                    "alignContent": "left"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Column Score Summary"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 6,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "5164fcfc",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "table_col_rule_detail",
+                  "fields": [
+                    {
+                      "name": "column_name",
+                      "expression": "`column_name`"
+                    },
+                    {
+                      "name": "rule_name",
+                      "expression": "`rule_name`"
+                    },
+                    {
+                      "name": "rule_type",
+                      "expression": "`rule_type`"
+                    },
+                    {
+                      "name": "dimension_name",
+                      "expression": "`dimension_name`"
+                    },
+                    {
+                      "name": "passed",
+                      "expression": "`passed`"
+                    },
+                    {
+                      "name": "total_records",
+                      "expression": "`total_records`"
+                    },
+                    {
+                      "name": "failed_records",
+                      "expression": "`failed_records`"
+                    },
+                    {
+                      "name": "failure_rate",
+                      "expression": "`failure_rate`"
+                    },
+                    {
+                      "name": "weighted_score",
+                      "expression": "`weighted_score`"
+                    },
+                    {
+                      "name": "egregious_flag",
+                      "expression": "`egregious_flag`"
+                    },
+                    {
+                      "name": "executed_rule_sql",
+                      "expression": "`executed_rule_sql`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "column_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Column",
+                    "displayName": "Column",
+                    "order": 100000,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "rule_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Rule",
+                    "displayName": "Rule",
+                    "order": 100001,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "rule_type",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Type",
+                    "displayName": "Type",
+                    "order": 100002,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "dimension_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Dimension",
+                    "displayName": "Dimension",
+                    "order": 100003,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "passed",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Passed",
+                    "displayName": "Passed",
+                    "order": 100004,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "total_records",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "title": "Total",
+                    "displayName": "Total",
+                    "order": 100005,
+                    "alignContent": "right"
+                  },
+                  {
+                    "fieldName": "failed_records",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "title": "Failed",
+                    "displayName": "Failed",
+                    "order": 100006,
+                    "alignContent": "right"
+                  },
+                  {
+                    "fieldName": "failure_rate",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Fail Rate",
+                    "displayName": "Fail Rate",
+                    "order": 100007,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "weighted_score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Score",
+                    "displayName": "Score",
+                    "order": 100008,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "egregious_flag",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Egregious",
+                    "displayName": "Egregious",
+                    "order": 100009,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "executed_rule_sql",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "SQL",
+                    "displayName": "SQL",
+                    "order": 100010,
+                    "alignContent": "left"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Rule Execution Detail"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 11,
+            "width": 6,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "1892d5f9",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "worst_columns",
+                  "fields": [
+                    {
+                      "name": "column_name",
+                      "expression": "`column_name`"
+                    },
+                    {
+                      "name": "min_score",
+                      "expression": "`min_score`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "column_name",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "column_name"
+                },
+                "y": {
+                  "fieldName": "min_score",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "min_score"
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Worst Columns (Bottom 10)"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 16,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "fbf5c347",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "table_col_rule_detail",
+                  "fields": [
+                    {
+                      "name": "column_name",
+                      "expression": "`column_name`"
+                    },
+                    {
+                      "name": "rule_name",
+                      "expression": "`rule_name`"
+                    },
+                    {
+                      "name": "failed_records",
+                      "expression": "`failed_records`"
+                    },
+                    {
+                      "name": "total_records",
+                      "expression": "`total_records`"
+                    },
+                    {
+                      "name": "failure_rate",
+                      "expression": "`failure_rate`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "column_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Column",
+                    "displayName": "Column",
+                    "order": 100000,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "rule_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Rule",
+                    "displayName": "Rule",
+                    "order": 100001,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "failed_records",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "title": "Failed Records",
+                    "displayName": "Failed Records",
+                    "order": 100002,
+                    "alignContent": "right"
+                  },
+                  {
+                    "fieldName": "total_records",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "title": "Total Records",
+                    "displayName": "Total Records",
+                    "order": 100003,
+                    "alignContent": "right"
+                  },
+                  {
+                    "fieldName": "failure_rate",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Failure Rate",
+                    "displayName": "Failure Rate",
+                    "order": 100004,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Record Impact Summary"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 16,
+            "width": 3,
+            "height": 4
+          }
+        }
+      ]
+    },
+    {
+      "name": "dc4055b1",
+      "displayName": "Rule Library",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layout": [
+        {
+          "widget": {
+            "name": "9a61cf4e",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "rule_library",
+                  "fields": [
+                    {
+                      "name": "rule_name",
+                      "expression": "`rule_name`"
+                    },
+                    {
+                      "name": "category_name",
+                      "expression": "`category_name`"
+                    },
+                    {
+                      "name": "dimension_name",
+                      "expression": "`dimension_name`"
+                    },
+                    {
+                      "name": "rule_type",
+                      "expression": "`rule_type`"
+                    },
+                    {
+                      "name": "default_severity_weight",
+                      "expression": "`default_severity_weight`"
+                    },
+                    {
+                      "name": "rule_status",
+                      "expression": "`rule_status`"
+                    },
+                    {
+                      "name": "version",
+                      "expression": "`version`"
+                    },
+                    {
+                      "name": "created_by",
+                      "expression": "`created_by`"
+                    },
+                    {
+                      "name": "times_deployed",
+                      "expression": "`times_deployed`"
+                    },
+                    {
+                      "name": "avg_failure_rate",
+                      "expression": "`avg_failure_rate`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "rule_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Rule Name",
+                    "displayName": "Rule Name",
+                    "order": 100000,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "category_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Category",
+                    "displayName": "Category",
+                    "order": 100001,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "dimension_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Dimension",
+                    "displayName": "Dimension",
+                    "order": 100002,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "rule_type",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Type",
+                    "displayName": "Type",
+                    "order": 100003,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "default_severity_weight",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Severity",
+                    "displayName": "Severity",
+                    "order": 100004,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  },
+                  {
+                    "fieldName": "rule_status",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Status",
+                    "displayName": "Status",
+                    "order": 100005,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "version",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Version",
+                    "displayName": "Version",
+                    "order": 100006,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "created_by",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Created By",
+                    "displayName": "Created By",
+                    "order": 100007,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "times_deployed",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "title": "Deployed",
+                    "displayName": "Deployed",
+                    "order": 100008,
+                    "alignContent": "right"
+                  },
+                  {
+                    "fieldName": "avg_failure_rate",
+                    "type": "float",
+                    "displayAs": "number",
+                    "title": "Avg Fail Rate",
+                    "displayName": "Avg Fail Rate",
+                    "order": 100009,
+                    "alignContent": "right",
+                    "numberFormat": "0.00"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Rule Library"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "3f89b398",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "rules_by_category",
+                  "fields": [
+                    {
+                      "name": "category_name",
+                      "expression": "`category_name`"
+                    },
+                    {
+                      "name": "rule_count",
+                      "expression": "SUM(`rule_count`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "category_name",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "y-reversed"
+                    }
+                  },
+                  "displayName": "category_name"
+                },
+                "y": {
+                  "fieldName": "rule_count",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "rule_count"
+                },
+                "label": {
+                  "show": true
+                },
+                "color": {
+                  "fieldName": "dimension_name",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "dimension_name"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Rules by Category"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "a2a49272",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "rules_by_dimension",
+                  "fields": [
+                    {
+                      "name": "rule_count",
+                      "expression": "`rule_count`"
+                    },
+                    {
+                      "name": "dimension_name",
+                      "expression": "`dimension_name`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "pie",
+              "encodings": {
+                "angle": {
+                  "fieldName": "rule_count",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "rule_count"
+                },
+                "color": {
+                  "fieldName": "dimension_name",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "dimension_name"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Rules by Dimension"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 6,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "237d0053",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "rules_highest_failure",
+                  "fields": [
+                    {
+                      "name": "rule_name",
+                      "expression": "`rule_name`"
+                    },
+                    {
+                      "name": "avg_failure_rate",
+                      "expression": "`avg_failure_rate`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "rule_name",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "y-reversed"
+                    }
+                  },
+                  "displayName": "rule_name"
+                },
+                "y": {
+                  "fieldName": "avg_failure_rate",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "avg_failure_rate"
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Rules with Highest Failure Rates"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 10,
+            "width": 3,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "c8f41dee",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "unmonitored_tables",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "schema_name",
+                      "expression": "`schema_name`"
+                    },
+                    {
+                      "name": "catalog_name",
+                      "expression": "`catalog_name`"
+                    },
+                    {
+                      "name": "owner_name",
+                      "expression": "`owner_name`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "table_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Table",
+                    "displayName": "Table",
+                    "order": 100000,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "schema_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Schema",
+                    "displayName": "Schema",
+                    "order": 100001,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "catalog_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Catalog",
+                    "displayName": "Catalog",
+                    "order": 100002,
+                    "alignContent": "left"
+                  },
+                  {
+                    "fieldName": "owner_name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "title": "Owner",
+                    "displayName": "Owner",
+                    "order": 100003,
+                    "alignContent": "left"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Unmonitored Asset Summary"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 10,
+            "width": 3,
+            "height": 4
+          }
+        }
+      ]
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+    },
+    "applyModeEnabled": false
+  }
+}

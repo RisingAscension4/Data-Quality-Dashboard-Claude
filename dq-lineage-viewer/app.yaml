@@ -1,0 +1,17 @@
+command:
+  - "python"
+  - "-m"
+  - "uvicorn"
+  - "app:app"
+  - "--host"
+  - "0.0.0.0"
+  - "--port"
+  - "8000"
+
+env:
+  - name: DATABRICKS_WAREHOUSE_ID
+    value: dce104510613317a
+  - name: DEFAULT_CATALOG
+    value: serverless_stable_jc9zgx_catalog
+  - name: DEFAULT_SCHEMA
+    value: data_quality
