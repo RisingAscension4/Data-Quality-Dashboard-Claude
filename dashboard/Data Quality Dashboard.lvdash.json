@@ -734,10 +734,6 @@
                   "datasetName": "801238e1",
                   "fields": [
                     {
-                      "name": "total_monitored_columns",
-                      "expression": "`total_monitored_columns`"
-                    },
-                    {
                       "name": "pct_columns_failing",
                       "expression": "`pct_columns_failing`"
                     }
@@ -765,21 +761,6 @@
                     "abbreviation": "none"
                   },
                   "displayName": "% Columns Failing"
-                },
-                "target": {
-                  "fieldName": "total_monitored_columns",
-                  "format": {
-                    "type": "number-plain",
-                    "decimalPlaces": {
-                      "type": "exact",
-                      "places": 0
-                    },
-                    "abbreviation": "none"
-                  },
-                  "change": {
-                    "type": "numeric"
-                  },
-                  "displayName": "Total Monitored Columns"
                 }
               }
             }
