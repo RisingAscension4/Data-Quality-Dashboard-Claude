@@ -1,0 +1,937 @@
+{
+  "datasets": [
+    {
+      "name": "report_divergence",
+      "displayName": "Report Divergence",
+      "queryLines": [
+        "SELECT\n",
+        "  CASE\n",
+        "    WHEN kpi LIKE 'Total Charges%' THEN CONCAT('Total Charges (', CHR(36), ' in millions)')\n",
+        "    WHEN kpi LIKE 'Net Revenue%' THEN CONCAT('Net Revenue (', CHR(36), ' in millions)')\n",
+        "    ELSE kpi\n",
+        "  END as kpi,\n",
+        "  report_a_cfo,\n",
+        "  report_b_revops,\n",
+        "  divergence,\n",
+        "  root_cause,\n",
+        "  explanation\n",
+        "FROM\n",
+        "  serverless_stable_jc9zgx_catalog.radiology_revenue_cycle.v_report_divergence"
+      ],
+      "columns": [
+        {
+          "displayName": "Absolute Gap",
+          "description": "",
+          "expression": "ABS(`divergence`)"
+        }
+      ]
+    },
+    {
+      "name": "report_b_revops",
+      "displayName": "Report B - RevOps Performance",
+      "queryLines": [
+        "SELECT\n",
+        "  *\n",
+        "FROM\n",
+        "  serverless_stable_jc9zgx_catalog.radiology_revenue_cycle.v_revops_performance"
+      ]
+    },
+    {
+      "name": "report_a_cfo",
+      "displayName": "Report A - CFO Summary",
+      "queryLines": [
+        "SELECT\n",
+        "  *\n",
+        "FROM\n",
+        "  serverless_stable_jc9zgx_catalog.radiology_revenue_cycle.v_cfo_monthly_summary"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "58fcbef9",
+      "displayName": "Executive Summary — Two Reports, One Truth",
+      "layout": [
+        {
+          "widget": {
+            "name": "header",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Two Reports, One Truth\n",
+                "\n",
+                "Same data, different business logic, divergent KPIs. \n",
+                "\n",
+                "**Report A** (Finance/CFO): Conservative, exclusion-based — \"Only count what we can validate\"\n",
+                "\n",
+                "**Report B** (Revenue Ops): Inclusive, count-everything — \"Count everything until proven invalid\""
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 12,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "counter_net_collections",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "report_divergence",
+                  "fields": [
+                    {
+                      "name": "divergence",
+                      "expression": "`divergence`"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`kpi` = 'Net Collection Rate (%)'"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Net Collections Gap",
+                "showTitle": true,
+                "showDescription": true,
+                "description": "COMPLETENESS"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "divergence",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 1
+                    }
+                  },
+                  "style": {
+                    "color": "#D32F2F"
+                  },
+                  "formatTemplate": "{{ @formatted }}pp",
+                  "displayName": "Gap"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "counter_denial_rate",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "report_divergence",
+                  "fields": [
+                    {
+                      "name": "divergence",
+                      "expression": "`divergence`"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`kpi` = 'Denial Rate (%)'"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Denial Rate Gap",
+                "showTitle": true,
+                "showDescription": true,
+                "description": "VALIDITY"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "divergence",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 1
+                    }
+                  },
+                  "style": {
+                    "color": "#D32F2F"
+                  },
+                  "formatTemplate": "{{ @formatted }}pp",
+                  "displayName": "Gap"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 3,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "counter_days_ar",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "report_divergence",
+                  "fields": [
+                    {
+                      "name": "divergence",
+                      "expression": "`divergence`"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`kpi` = 'Days in AR'"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Days in AR Gap",
+                "showTitle": true,
+                "showDescription": true,
+                "description": "TIMELINESS"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "divergence",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 0
+                    }
+                  },
+                  "style": {
+                    "color": "#D32F2F"
+                  },
+                  "formatTemplate": "{{ @formatted }} days",
+                  "displayName": "Gap"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 3,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "counter_payer_mix",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "report_divergence",
+                  "fields": [
+                    {
+                      "name": "divergence",
+                      "expression": "`divergence`"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`kpi` = 'Commercial Payer Mix (%)'"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Commercial Mix Gap",
+                "showTitle": true,
+                "showDescription": true,
+                "description": "CONSISTENCY"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "divergence",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 1
+                    }
+                  },
+                  "style": {
+                    "color": "#D32F2F"
+                  },
+                  "formatTemplate": "{{ @formatted }}pp",
+                  "displayName": "Gap"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 3,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "counter_charges",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "report_divergence",
+                  "fields": [
+                    {
+                      "name": "divergence",
+                      "expression": "`divergence`"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`kpi` LIKE 'Total Charges%'"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Total Charges Gap",
+                "showTitle": true,
+                "showDescription": true,
+                "description": "UNIQUENESS"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "divergence",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 1
+                    }
+                  },
+                  "style": {
+                    "color": "#D32F2F"
+                  },
+                  "formatTemplate": "${{ @formatted }}M",
+                  "displayName": "Gap"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 3,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "counter_revenue",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "report_divergence",
+                  "fields": [
+                    {
+                      "name": "divergence",
+                      "expression": "`divergence`"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`kpi` LIKE 'Net Revenue%'"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Net Revenue Gap",
+                "showTitle": true,
+                "showDescription": true,
+                "description": "ACCURACY"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "divergence",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 1
+                    }
+                  },
+                  "style": {
+                    "color": "#D32F2F"
+                  },
+                  "formatTemplate": "${{ @formatted }}M",
+                  "displayName": "Gap"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 10,
+            "y": 3,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "bar_comparison",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "report_divergence",
+                  "fields": [
+                    {
+                      "name": "kpi",
+                      "expression": "`kpi`"
+                    },
+                    {
+                      "name": "report_a_cfo",
+                      "expression": "`report_a_cfo`"
+                    },
+                    {
+                      "name": "report_b_revops",
+                      "expression": "`report_b_revops`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Report A vs Report B — KPI Comparison",
+                "showTitle": true,
+                "showDescription": true,
+                "description": "Same data, two interpretations. "
+              },
+              "mark": {
+                "layout": "group"
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "kpi",
+                  "axis": {
+                    "hideTitle": true
+                  },
+                  "displayName": "KPI",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "custom-order",
+                      "orderedValues": [
+                        "Net Collection Rate (%)",
+                        "Denial Rate (%)",
+                        "Days in AR",
+                        "Commercial Payer Mix (%)",
+                        "Total Charges ($ in millions)",
+                        "Net Revenue ($ in millions)"
+                      ]
+                    }
+                  }
+                },
+                "y": {
+                  "fields": [
+                    {
+                      "fieldName": "report_a_cfo",
+                      "displayName": "Report A (CFO)"
+                    },
+                    {
+                      "fieldName": "report_b_revops",
+                      "displayName": "Report B (RevOps)"
+                    }
+                  ],
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "axis": {
+                    "title": "Value",
+                    "hideTitle": true
+                  }
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 5,
+            "width": 12,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "detail_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "report_divergence",
+                  "fields": [
+                    {
+                      "name": "kpi",
+                      "expression": "`kpi`"
+                    },
+                    {
+                      "name": "report_a_cfo",
+                      "expression": "`report_a_cfo`"
+                    },
+                    {
+                      "name": "report_b_revops",
+                      "expression": "`report_b_revops`"
+                    },
+                    {
+                      "name": "divergence",
+                      "expression": "`divergence`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Divergence Detail",
+                "showTitle": true,
+                "headerAlignment": "center"
+              },
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "kpi",
+                    "contentAlignment": "left",
+                    "displayName": "KPI"
+                  },
+                  {
+                    "fieldName": "report_a_cfo",
+                    "format": {
+                      "type": "number-plain",
+                      "abbreviation": "none",
+                      "decimalPlaces": {
+                        "type": "exact",
+                        "places": 1
+                      }
+                    },
+                    "contentAlignment": "center",
+                    "displayName": "Report A (CFO)"
+                  },
+                  {
+                    "fieldName": "report_b_revops",
+                    "format": {
+                      "type": "number-plain",
+                      "abbreviation": "none",
+                      "decimalPlaces": {
+                        "type": "exact",
+                        "places": 1
+                      }
+                    },
+                    "contentAlignment": "center",
+                    "displayName": "Report B (RevOps)"
+                  },
+                  {
+                    "fieldName": "divergence",
+                    "format": {
+                      "type": "number-plain",
+                      "abbreviation": "none",
+                      "decimalPlaces": {
+                        "type": "exact",
+                        "places": 1
+                      }
+                    },
+                    "contentAlignment": "center",
+                    "displayName": "Gap"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 10,
+            "width": 4,
+            "height": 5
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    },
+    {
+      "name": "root_cause",
+      "displayName": "Root Cause — Data Quality Defects",
+      "layout": [
+        {
+          "widget": {
+            "name": "header",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Root Cause — 8 Data Quality Defects Across 6 Dimensions\n",
+                "\n",
+                "Each KPI divergence traces to a specific data quality defect. The **same underlying tables** are queried by both reports — the difference is how each team handles ambiguous or defective data."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 12,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "defect_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "report_divergence",
+                  "fields": [
+                    {
+                      "name": "root_cause",
+                      "expression": "`root_cause`"
+                    },
+                    {
+                      "name": "kpi",
+                      "expression": "`kpi`"
+                    },
+                    {
+                      "name": "divergence",
+                      "expression": "`divergence`"
+                    },
+                    {
+                      "name": "explanation",
+                      "expression": "`explanation`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Defect Impact Summary",
+                "showTitle": true
+              },
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "root_cause",
+                    "displayName": "DQ Dimension"
+                  },
+                  {
+                    "fieldName": "kpi",
+                    "displayName": "Affected KPI"
+                  },
+                  {
+                    "fieldName": "divergence",
+                    "format": {
+                      "type": "number-plain",
+                      "abbreviation": "none",
+                      "decimalPlaces": {
+                        "type": "exact",
+                        "places": 1
+                      }
+                    },
+                    "displayName": "Gap"
+                  },
+                  {
+                    "fieldName": "explanation",
+                    "displayName": "How the Defect Causes Divergence"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 2,
+            "width": 6,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "completeness_detail",
+            "multilineTextboxSpec": {
+              "lines": [
+                "### COMPLETENESS\n",
+                "**Defect**: NULL `allowed_amount` on 8% of paid claims (concentrated on high-charge MRI/NM/IR modalities)\n",
+                "\n",
+                "**Report A**: Excludes NULL rows from net collections denominator\n",
+                "\n",
+                "**Report B**: Substitutes `charge_amount` ($2,800–$8,500) into denominator, dramatically inflating it\n",
+                "\n",
+                "**Result**: Net Collection Rate diverges **6.5 percentage points**"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 7,
+            "width": 4,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "validity_detail",
+            "multilineTextboxSpec": {
+              "lines": [
+                "### VALIDITY\n",
+                "**Defect**: 30% of denied claims have invalid CARC codes (CO-999, PI-300, OA-500) that don't exist in X12 835 standard\n",
+                "\n",
+                "**Report A**: Drops invalid CARC codes — since those claims ONLY have invalid denials, they're removed entirely from the denied count\n",
+                "\n",
+                "**Report B**: Counts ALL denials regardless of CARC validity\n",
+                "\n",
+                "**Result**: Denial Rate diverges **3.9 percentage points**"
+              ]
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 7,
+            "width": 4,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "timeliness_detail",
+            "multilineTextboxSpec": {
+              "lines": [
+                "### TIMELINESS\n",
+                "**Defect**: Hospital-based locations (system_a) have AR snapshots 9 days stale (last: May 6 vs today: May 15)\n",
+                "\n",
+                "**Report A**: Uses MAX(snapshot_date) per location — includes hospitals' low-AR data (avg 22 days)\n",
+                "\n",
+                "**Report B**: Filters to snapshot_date = TODAY only — excludes hospitals entirely, leaving freestanding (avg 60 days)\n",
+                "\n",
+                "**Result**: Days in AR diverges **13 days**"
+              ]
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 7,
+            "width": 4,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "consistency_detail",
+            "multilineTextboxSpec": {
+              "lines": [
+                "### CONSISTENCY\n",
+                "**Defect**: `claim_header.payer_name` uses 3–5 name variants per payer (e.g., \"BCBS\", \"Blue Cross BS\", \"BCBS IL\", \"BlueCross BlueShield of IL\")\n",
+                "\n",
+                "**Report A**: JOINs to canonical `payer` reference table on `payer_id` — correct classification\n",
+                "\n",
+                "**Report B**: Pattern-matches on `payer_name` with incomplete lookup — misses variants like \"UHC\", \"CVS/Aetna\"\n",
+                "\n",
+                "**Result**: Commercial Mix diverges **19.5 percentage points**"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 11,
+            "width": 4,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "uniqueness_detail",
+            "multilineTextboxSpec": {
+              "lines": [
+                "### UNIQUENESS + ACCURACY-A\n",
+                "**Defect 1**: 3% of pre-Oct 2025 claims are unflagged rebill duplicates (`is_rebill=false`, `original_claim_id=NULL`)\n",
+                "\n",
+                "**Defect 2**: 1.5% of claims have TC/26 component overlap (global + technical + professional lines for same CPT)\n",
+                "\n",
+                "**Report A**: Deduplicates by (encounter, patient, charge); removes components when global exists\n",
+                "\n",
+                "**Report B**: Sums all claim lines naively\n",
+                "\n",
+                "**Result**: Total Charges diverges **$4.5M**"
+              ]
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 11,
+            "width": 4,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "accuracy_detail",
+            "multilineTextboxSpec": {
+              "lines": [
+                "### ACCURACY (B + C)\n",
+                "**Defect B**: PAY-011/PAY-012 clearinghouse error sets `allowed_amount = charge_amount` (should be 40–60% of charge)\n",
+                "\n",
+                "**Defect C**: BCBS (PAY-001) Jan–Feb 2026 uses stale fee schedule — `allowed_amount` 12% below actual payment\n",
+                "\n",
+                "**Report A**: Reconciles against `payment` table; uses actual payments for affected payers\n",
+                "\n",
+                "**Report B**: Trusts `allowed_amount` at face value\n",
+                "\n",
+                "**Result**: Net Revenue diverges **$4.1M**"
+              ]
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 11,
+            "width": 4,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "divergence_bar",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "report_divergence",
+                  "fields": [
+                    {
+                      "name": "root_cause",
+                      "expression": "`root_cause`"
+                    },
+                    {
+                      "name": "Absolute Gap",
+                      "expression": "`Absolute Gap`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "title": "Divergence Magnitude by DQ Dimension",
+                "showTitle": true,
+                "showDescription": true,
+                "description": "Higher bars = greater impact from the data quality defect"
+              },
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "root_cause",
+                  "axis": {
+                    "hideTitle": true,
+                    "labelAngle": 45
+                  },
+                  "displayName": "DQ Dimension",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "y-reversed"
+                    }
+                  }
+                },
+                "y": {
+                  "fieldName": "Absolute Gap",
+                  "axis": {
+                    "title": "Absolute Divergence"
+                  },
+                  "displayName": "|Gap|",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 6,
+            "height": 5
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+    },
+    "applyModeEnabled": false
+  }
+}
