@@ -14,7 +14,15 @@
         "  report_b_revops,\n",
         "  divergence,\n",
         "  root_cause,\n",
-        "  explanation\n",
+        "  explanation,\n",
+        "  CASE kpi\n",
+        "    WHEN 'Net Collection Rate (%)' THEN 95.0\n",
+        "    WHEN 'Denial Rate (%)' THEN 5.0\n",
+        "    WHEN 'Days in AR' THEN 40.0\n",
+        "    WHEN 'Commercial Payer Mix (%)' THEN 45.0\n",
+        "    WHEN 'Total Charges ()' THEN 57.0\n",
+        "    WHEN 'Net Revenue ()' THEN 24.0\n",
+        "  END as target\n",
         "FROM\n",
         "  serverless_stable_jc9zgx_catalog.radiology_revenue_cycle.v_report_divergence"
       ],
@@ -44,6 +52,246 @@
         "  *\n",
         "FROM\n",
         "  serverless_stable_jc9zgx_catalog.radiology_revenue_cycle.v_cfo_monthly_summary"
+      ]
+    },
+    {
+      "name": "reconciliation_cost",
+      "displayName": "Reconciliation Process Cost",
+      "queryLines": [
+        "SELECT\n",
+        "  *\n",
+        "FROM\n",
+        "  (\n",
+        "    VALUES\n",
+        "      (\n",
+        "        1,\n",
+        "        'Discovery & Escalation',\n",
+        "        'CEO/COO',\n",
+        "        2,\n",
+        "        350,\n",
+        "        700,\n",
+        "        'Reviews both reports, emails CFO and RevOps Director'\n",
+        "      ),\n",
+        "      (\n",
+        "        1,\n",
+        "        'Discovery & Escalation',\n",
+        "        'CFO',\n",
+        "        2,\n",
+        "        250,\n",
+        "        500,\n",
+        "        'Pulls Report A methodology, prepares defense'\n",
+        "      ),\n",
+        "      (\n",
+        "        1,\n",
+        "        'Discovery & Escalation',\n",
+        "        'Director of Rev Ops',\n",
+        "        2,\n",
+        "        200,\n",
+        "        400,\n",
+        "        'Pulls Report B methodology, prepares defense'\n",
+        "      ),\n",
+        "      (\n",
+        "        1,\n",
+        "        'Discovery & Escalation',\n",
+        "        'Executive Assistant',\n",
+        "        2,\n",
+        "        75,\n",
+        "        150,\n",
+        "        'Schedules emergency meeting, gathers prior reports'\n",
+        "      ),\n",
+        "      (2, 'Reconciliation Meeting', 'CEO/COO', 3, 350, 1050, 'Chairs reconciliation meeting(s)'),\n",
+        "      (\n",
+        "        2,\n",
+        "        'Reconciliation Meeting',\n",
+        "        'CFO',\n",
+        "        6,\n",
+        "        250,\n",
+        "        1500,\n",
+        "        'Presents methodology, defends assumptions'\n",
+        "      ),\n",
+        "      (\n",
+        "        2,\n",
+        "        'Reconciliation Meeting',\n",
+        "        'Director of Rev Ops',\n",
+        "        6,\n",
+        "        200,\n",
+        "        1200,\n",
+        "        'Presents methodology, identifies disagreements'\n",
+        "      ),\n",
+        "      (\n",
+        "        2,\n",
+        "        'Reconciliation Meeting',\n",
+        "        'Revenue Cycle Manager',\n",
+        "        4,\n",
+        "        150,\n",
+        "        600,\n",
+        "        'Pulls claim-level examples'\n",
+        "      ),\n",
+        "      (2, 'Reconciliation Meeting', 'BI Analyst', 5, 125, 625, 'Ad hoc queries to spot-check KPIs'),\n",
+        "      (\n",
+        "        3,\n",
+        "        'Root Cause Investigation',\n",
+        "        'BI Analyst',\n",
+        "        40,\n",
+        "        125,\n",
+        "        5000,\n",
+        "        'Query-by-query comparison of both reports'\n",
+        "      ),\n",
+        "      (\n",
+        "        3,\n",
+        "        'Root Cause Investigation',\n",
+        "        'IT Director',\n",
+        "        8,\n",
+        "        175,\n",
+        "        1400,\n",
+        "        'Checks system feeds, AR snapshots, clearinghouse logs'\n",
+        "      ),\n",
+        "      (\n",
+        "        3,\n",
+        "        'Root Cause Investigation',\n",
+        "        'Revenue Cycle Manager',\n",
+        "        12,\n",
+        "        150,\n",
+        "        1800,\n",
+        "        'Validates denial codes against X12 standards'\n",
+        "      ),\n",
+        "      (\n",
+        "        3,\n",
+        "        'Root Cause Investigation',\n",
+        "        'Billing Manager',\n",
+        "        10,\n",
+        "        125,\n",
+        "        1250,\n",
+        "        'Investigates rebill duplicates, TC/26 overlaps'\n",
+        "      ),\n",
+        "      (\n",
+        "        3,\n",
+        "        'Root Cause Investigation',\n",
+        "        'Clearinghouse Liaison',\n",
+        "        6,\n",
+        "        100,\n",
+        "        600,\n",
+        "        'Contacts vendor about EDI translation errors'\n",
+        "      ),\n",
+        "      (\n",
+        "        3,\n",
+        "        'Root Cause Investigation',\n",
+        "        'External Consultant',\n",
+        "        4,\n",
+        "        300,\n",
+        "        1200,\n",
+        "        'Reviews BCBS fee schedule effective dates'\n",
+        "      ),\n",
+        "      (\n",
+        "        4,\n",
+        "        'Remediation',\n",
+        "        'Data Engineer',\n",
+        "        20,\n",
+        "        150,\n",
+        "        3000,\n",
+        "        'Fix ERA/835 matching pipeline, backfill allowed amounts'\n",
+        "      ),\n",
+        "      (\n",
+        "        4,\n",
+        "        'Remediation',\n",
+        "        'IT Director',\n",
+        "        8,\n",
+        "        175,\n",
+        "        1400,\n",
+        "        'Implement SLA monitoring on hospital batch feeds'\n",
+        "      ),\n",
+        "      (\n",
+        "        4,\n",
+        "        'Remediation',\n",
+        "        'Billing Manager',\n",
+        "        12,\n",
+        "        125,\n",
+        "        1500,\n",
+        "        'Flag rebill duplicates, fix TC/26 charge capture rules'\n",
+        "      ),\n",
+        "      (\n",
+        "        4,\n",
+        "        'Remediation',\n",
+        "        'Revenue Cycle Manager',\n",
+        "        8,\n",
+        "        150,\n",
+        "        1200,\n",
+        "        'Update payer variant lookup, enforce canonical names'\n",
+        "      ),\n",
+        "      (\n",
+        "        4,\n",
+        "        'Remediation',\n",
+        "        'Clearinghouse Liaison',\n",
+        "        6,\n",
+        "        100,\n",
+        "        600,\n",
+        "        'Submit ticket for CARC code translation fix'\n",
+        "      ),\n",
+        "      (\n",
+        "        4,\n",
+        "        'Remediation',\n",
+        "        'Payer Contract Analyst',\n",
+        "        6,\n",
+        "        125,\n",
+        "        750,\n",
+        "        'Update BCBS fee schedule, fix PAY-011/012'\n",
+        "      ),\n",
+        "      (\n",
+        "        5,\n",
+        "        'Validation & Regeneration',\n",
+        "        'BI Analyst',\n",
+        "        10,\n",
+        "        125,\n",
+        "        1250,\n",
+        "        'Rerun both reports on corrected data'\n",
+        "      ),\n",
+        "      (\n",
+        "        5,\n",
+        "        'Validation & Regeneration',\n",
+        "        'CFO',\n",
+        "        4,\n",
+        "        250,\n",
+        "        1000,\n",
+        "        'Reviews and signs off on corrected financials'\n",
+        "      ),\n",
+        "      (\n",
+        "        5,\n",
+        "        'Validation & Regeneration',\n",
+        "        'Director of Rev Ops',\n",
+        "        4,\n",
+        "        200,\n",
+        "        800,\n",
+        "        'Validates operational metrics match'\n",
+        "      ),\n",
+        "      (\n",
+        "        5,\n",
+        "        'Validation & Regeneration',\n",
+        "        'CEO/COO',\n",
+        "        2,\n",
+        "        350,\n",
+        "        700,\n",
+        "        'Final review, approves corrected numbers for board'\n",
+        "      ),\n",
+        "      (\n",
+        "        6,\n",
+        "        'Prevention & Governance',\n",
+        "        'IT Director',\n",
+        "        6,\n",
+        "        175,\n",
+        "        1050,\n",
+        "        'Implements DQ monitoring alerts'\n",
+        "      ),\n",
+        "      (\n",
+        "        6,\n",
+        "        'Prevention & Governance',\n",
+        "        'Data Engineer',\n",
+        "        6,\n",
+        "        150,\n",
+        "        900,\n",
+        "        'Builds automated reconciliation checks'\n",
+        "      ),\n",
+        "      (6, 'Prevention & Governance', 'CEO/COO', 4, 350, 1400, 'Approves new data governance policy')\n",
+        "  ) AS t(phase_order, phase, role, hours, hourly_rate, cost, activity)"
       ]
     }
   ],
@@ -539,6 +787,10 @@
                       "expression": "`report_b_revops`"
                     },
                     {
+                      "name": "target",
+                      "expression": "`target`"
+                    },
+                    {
                       "name": "divergence",
                       "expression": "`divergence`"
                     }
@@ -552,7 +804,7 @@
               "frame": {
                 "title": "Divergence Detail",
                 "showTitle": true,
-                "headerAlignment": "center"
+                "headerAlignment": "left"
               },
               "widgetType": "table",
               "encodings": {
@@ -589,6 +841,19 @@
                     "displayName": "Report B (RevOps)"
                   },
                   {
+                    "fieldName": "target",
+                    "format": {
+                      "type": "number-plain",
+                      "abbreviation": "none",
+                      "decimalPlaces": {
+                        "type": "exact",
+                        "places": 1
+                      }
+                    },
+                    "contentAlignment": "center",
+                    "displayName": "Target"
+                  },
+                  {
                     "fieldName": "divergence",
                     "format": {
                       "type": "number-plain",
@@ -599,7 +864,7 @@
                       }
                     },
                     "contentAlignment": "center",
-                    "displayName": "Gap"
+                    "displayName": "Gap (CFO - RevOps Values)"
                   }
                 ]
               }
@@ -608,7 +873,35 @@
           "position": {
             "x": 0,
             "y": 10,
-            "width": 4,
+            "width": 6,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi_definitions",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## KPI Definitions\n",
+                "\n",
+                "**Net Collection Rate** — Of money payers agreed to pay, what % was actually collected. Measures billing efficiency. **Target: ≥95%**\n",
+                "\n",
+                "**Denial Rate** — % of claims rejected by payers on first pass. Each denial requires rework or write-off. **Target: <5%**\n",
+                "\n",
+                "**Days in AR** — Average days a charge sits unpaid from service to payment. Measures cash velocity. **Target: <40 days**\n",
+                "\n",
+                "**Commercial Payer Mix** — Share from commercial insurers vs. Medicare/Medicaid. Commercial pays 2–4x government rates. **Target: ≥45%**\n",
+                "\n",
+                "**Total Charges** — Gross billed amount before adjustments. Reflects volume and fee schedule pricing. **Target: ≥$57M** (annual budget)\n",
+                "\n",
+                "**Net Revenue** — Expected receipts after contractual adjustments. Closest proxy to real cash flow. **Target: ≥$24M** (annual budget)"
+              ]
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 10,
+            "width": 6,
             "height": 5
           }
         }
@@ -627,7 +920,7 @@
               "lines": [
                 "## Root Cause — 8 Data Quality Defects Across 6 Dimensions\n",
                 "\n",
-                "Each KPI divergence traces to a specific data quality defect. The **same underlying tables** are queried by both reports — the difference is how each team handles ambiguous or defective data."
+                "The **same underlying tables** are queried by both reports — the difference is how each team handles ambiguous or defective data."
               ]
             }
           },
@@ -718,13 +1011,18 @@
             "multilineTextboxSpec": {
               "lines": [
                 "### COMPLETENESS\n",
-                "**Defect**: NULL `allowed_amount` on 8% of paid claims (concentrated on high-charge MRI/NM/IR modalities)\n",
                 "\n",
-                "**Report A**: Excludes NULL rows from net collections denominator\n",
+                "**Calculation**: `Collection Rate = Payments Received ÷ Allowed Amount`\n",
                 "\n",
-                "**Report B**: Substitutes `charge_amount` ($2,800–$8,500) into denominator, dramatically inflating it\n",
+                "**Defect**: 8% of *paid* claims have NULL `allowed_amount` — concentrated on more exepensive procedures like MRI/NM/IR\n",
                 "\n",
-                "**Result**: Net Collection Rate diverges **6.5 percentage points**"
+                "**Business context**: If a claim is paid, the payer determined an allowed amount. NULL means the ERA/835 remittance wasn't matched to the claim — common on complex modalities where manual payments, appeals, or carve-out networks bypass standard electronic posting.\n",
+                "\n",
+                "**The real question**: Why don't 8% of paid claims have remittance data? Both teams work around a revenue posting pipeline failure instead of fixing it.\n",
+                "\n",
+                "**Report A**: Excludes these rows from the denominator<br>**Report B**: Substitutes the billed charge when `allowed_amount` is NULL. Since charges are 3–5x what payers actually allow, this massively inflates the denominator and deflates the collection rate.\n",
+                "\n",
+                "**Result**: Net Collection Rate diverges **6.5pp**"
               ]
             }
           },
@@ -732,7 +1030,7 @@
             "x": 0,
             "y": 7,
             "width": 4,
-            "height": 4
+            "height": 7
           }
         },
         {
@@ -741,13 +1039,18 @@
             "multilineTextboxSpec": {
               "lines": [
                 "### VALIDITY\n",
-                "**Defect**: 30% of denied claims have invalid CARC codes (CO-999, PI-300, OA-500) that don't exist in X12 835 standard\n",
                 "\n",
-                "**Report A**: Drops invalid CARC codes — since those claims ONLY have invalid denials, they're removed entirely from the denied count\n",
+                "**Calculation**: `Denial Rate = Denied Claims ÷ Total Claims Submitted`\n",
                 "\n",
-                "**Report B**: Counts ALL denials regardless of CARC validity\n",
+                "**Defect**: 30% of denied claims have invalid CARC codes (CO-999, PI-300, OA-500) that don't exist in the X12 835 standard\n",
                 "\n",
-                "**Result**: Denial Rate diverges **3.9 percentage points**"
+                "**Business context**: Invalid CARC codes typically arise from clearinghouse translation errors or payer system migrations. When a payer upgrades their adjudication platform, denial reason codes temporarily map to placeholder values. Smaller payers and regional clearinghouses are especially prone during system transitions.\n",
+                "\n",
+                "**The real question**: Why are invalid codes persisting without correction? There's no validation on ingest and no feedback loop with the clearinghouse to fix broken mappings.\n",
+                "\n",
+                "**Report A**: Drops invalid CARCs — claims with ONLY invalid denials disappear from denied count<br>**Report B**: Counts ALL denials regardless of code validity\n",
+                "\n",
+                "**Result**: Denial Rate diverges **3.9pp**"
               ]
             }
           },
@@ -755,7 +1058,7 @@
             "x": 4,
             "y": 7,
             "width": 4,
-            "height": 4
+            "height": 7
           }
         },
         {
@@ -764,11 +1067,16 @@
             "multilineTextboxSpec": {
               "lines": [
                 "### TIMELINESS\n",
-                "**Defect**: Hospital-based locations (system_a) have AR snapshots 9 days stale (last: May 6 vs today: May 15)\n",
                 "\n",
-                "**Report A**: Uses MAX(snapshot_date) per location — includes hospitals' low-AR data (avg 22 days)\n",
+                "**Calculation**: `Days in AR = Avg Days from Date of Service to Payment`\n",
                 "\n",
-                "**Report B**: Filters to snapshot_date = TODAY only — excludes hospitals entirely, leaving freestanding (avg 60 days)\n",
+                "**Defect**: Hospital-based locations (system\\_a) have AR snapshots 9 days stale (last: May 6 vs today: May 15)\n",
+                "\n",
+                "**Business context**: Hospital-based radiology relies on the hospital's HIS/RIS to push AR data via scheduled batch feeds. When hospital IT deprioritizes the feed (maintenance windows, system upgrades, staff turnover), data goes stale silently. Freestanding centers control their own systems so feeds stay current.\n",
+                "\n",
+                "**The real question**: Why is there no SLA monitoring or alerting on feed freshness? Both teams make decisions without knowing they're missing 9 days of hospital data.\n",
+                "\n",
+                "**Report A**: Uses MAX(snapshot\\_date) per location — includes hospitals' low-AR data (avg 22 days)<br>**Report B**: Filters to snapshot\\_date = TODAY — excludes hospitals entirely, leaving only freestanding (avg 60 days)\n",
                 "\n",
                 "**Result**: Days in AR diverges **13 days**"
               ]
@@ -778,7 +1086,7 @@
             "x": 8,
             "y": 7,
             "width": 4,
-            "height": 4
+            "height": 7
           }
         },
         {
@@ -787,21 +1095,26 @@
             "multilineTextboxSpec": {
               "lines": [
                 "### CONSISTENCY\n",
-                "**Defect**: `claim_header.payer_name` uses 3–5 name variants per payer (e.g., \"BCBS\", \"Blue Cross BS\", \"BCBS IL\", \"BlueCross BlueShield of IL\")\n",
                 "\n",
-                "**Report A**: JOINs to canonical `payer` reference table on `payer_id` — correct classification\n",
+                "**Calculation**: `Commercial Mix = Commercial Claims ÷ Total Claims`\n",
                 "\n",
-                "**Report B**: Pattern-matches on `payer_name` with incomplete lookup — misses variants like \"UHC\", \"CVS/Aetna\"\n",
+                "**Defect**: `payer_name` has 3–5 variants per payer (e.g., \"BCBS\", \"Blue Cross BS\", \"BCBS IL\", \"BlueCross BlueShield of IL\")\n",
                 "\n",
-                "**Result**: Commercial Mix diverges **19.5 percentage points**"
+                "**Business context**: Payer names enter at multiple touchpoints — registration, eligibility verification, ERA posting — each using different conventions. Mergers make it worse (CVS acquired Aetna but systems still reference both). Without master data management for payer identity, variants accumulate unchecked.\n",
+                "\n",
+                "**The real question**: The canonical payer table exists (Report A uses it). Why isn't it enforced at registration so variants never enter the system?\n",
+                "\n",
+                "**Report A**: JOINs to canonical `payer` table on `payer_id` — correct classification<br>**Report B**: Pattern-matches on `payer_name` with incomplete lookup — misses \"UHC\", \"CVS/Aetna\", etc.\n",
+                "\n",
+                "**Result**: Commercial Mix diverges **19.5pp**"
               ]
             }
           },
           "position": {
             "x": 0,
-            "y": 11,
+            "y": 14,
             "width": 4,
-            "height": 4
+            "height": 8
           }
         },
         {
@@ -809,14 +1122,17 @@
             "name": "uniqueness_detail",
             "multilineTextboxSpec": {
               "lines": [
-                "### UNIQUENESS + ACCURACY-A\n",
-                "**Defect 1**: 3% of pre-Oct 2025 claims are unflagged rebill duplicates (`is_rebill=false`, `original_claim_id=NULL`)\n",
+                "### UNIQUENESS + ACCURACY\n",
                 "\n",
-                "**Defect 2**: 1.5% of claims have TC/26 component overlap (global + technical + professional lines for same CPT)\n",
+                "**Calculation**: `Total Charges = Sum of All Billed Amounts`\n",
                 "\n",
-                "**Report A**: Deduplicates by (encounter, patient, charge); removes components when global exists\n",
+                "**Defect 1**: 3% of pre-Oct 2025 claims are unflagged rebill duplicates<br>**Defect 2**: 1.5% have TC/26 component overlap (global + technical + professional for same CPT)\n",
                 "\n",
-                "**Report B**: Sums all claim lines naively\n",
+                "**Business context**: Rebills (corrected claims) are normal — modifier changes, late charge capture, auth corrections. Before Oct 2025, the billing system didn't flag them, so originals and corrections coexist without linkage. TC/26 overlap occurs during transitions between billing arrangements (e.g., radiologist moves from employed to independent).\n",
+                "\n",
+                "**The real question**: Why did rebill tracking fail for 5+ months before being fixed? And why does charge capture allow both global and component billing on the same encounter?\n",
+                "\n",
+                "**Report A**: Deduplicates by (encounter, patient, charge); removes components when global exists<br>**Report B**: Sums all claim lines naively\n",
                 "\n",
                 "**Result**: Total Charges diverges **$4.5M**"
               ]
@@ -824,9 +1140,9 @@
           },
           "position": {
             "x": 4,
-            "y": 11,
+            "y": 14,
             "width": 4,
-            "height": 4
+            "height": 8
           }
         },
         {
@@ -834,14 +1150,17 @@
             "name": "accuracy_detail",
             "multilineTextboxSpec": {
               "lines": [
-                "### ACCURACY (B + C)\n",
-                "**Defect B**: PAY-011/PAY-012 clearinghouse error sets `allowed_amount = charge_amount` (should be 40–60% of charge)\n",
+                "### ACCURACY\n",
                 "\n",
-                "**Defect C**: BCBS (PAY-001) Jan–Feb 2026 uses stale fee schedule — `allowed_amount` 12% below actual payment\n",
+                "**Calculation**: `Net Revenue = Sum of Allowed Amounts`\n",
                 "\n",
-                "**Report A**: Reconciles against `payment` table; uses actual payments for affected payers\n",
+                "**Defect B**: PAY-011/012 clearinghouse error sets `allowed = charge` (should be 40–60%)<br>**Defect C**: BCBS Jan–Feb 2026 uses stale fee schedule — `allowed` is 12% below actual payment\n",
                 "\n",
-                "**Report B**: Trusts `allowed_amount` at face value\n",
+                "**Business context**: Clearinghouse errors happen when the EDI translation layer fails to parse contractual adjustments from the 835 — the system defaults to charge as a fallback. Stale fee schedules occur when contract renegotiations complete (new rates effective Jan 1) but the contract management system isn't updated.\n",
+                "\n",
+                "**The real question**: Why is there no reconciliation between allowed amounts and actual payments? A simple variance alert (payment ≠ expected allowed) would catch both issues immediately.\n",
+                "\n",
+                "**Report A**: Reconciles against `payment` table; uses actual payments for affected payers<br>**Report B**: Trusts `allowed_amount` at face value\n",
                 "\n",
                 "**Result**: Net Revenue diverges **$4.1M**"
               ]
@@ -849,9 +1168,9 @@
           },
           "position": {
             "x": 8,
-            "y": 11,
+            "y": 14,
             "width": 4,
-            "height": 4
+            "height": 8
           }
         },
         {
@@ -921,6 +1240,458 @@
             "y": 2,
             "width": 6,
             "height": 5
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    },
+    {
+      "name": "business_impact",
+      "displayName": "Business Impact — Cost of Inaction",
+      "layout": [
+        {
+          "widget": {
+            "name": "header",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Business Impact — Cost of Inaction\n",
+                "\n",
+                "When the CEO receives diverging reports, the organization enters a 6–8 week reconciliation cycle involving 12 people across 6 phases. Below is the realistic cost of resolving data quality issues *reactively* instead of preventing them."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 12,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "counter_weeks",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "reconciliation_cost",
+                  "fields": [
+                    {
+                      "name": "max(phase_order)",
+                      "expression": "MAX(`phase_order`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Calendar Time",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "max(phase_order)",
+                  "formatTemplate": "6–8 weeks",
+                  "displayName": "Weeks"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 3,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "counter_hours",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "reconciliation_cost",
+                  "fields": [
+                    {
+                      "name": "sum(hours)",
+                      "expression": "SUM(`hours`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Total Person-Hours",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(hours)",
+                  "displayName": "Hours"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 2,
+            "width": 3,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "counter_people",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "reconciliation_cost",
+                  "fields": [
+                    {
+                      "name": "countdistinct(role)",
+                      "expression": "COUNT(DISTINCT `role`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "People Involved",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "countdistinct(role)",
+                  "displayName": "People"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 2,
+            "width": 3,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "counter_cost",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "reconciliation_cost",
+                  "fields": [
+                    {
+                      "name": "sum(cost)",
+                      "expression": "SUM(`cost`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Total Labor Cost",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(cost)",
+                  "format": {
+                    "type": "number-currency",
+                    "abbreviation": "compact",
+                    "currencyCode": "USD"
+                  },
+                  "displayName": "Cost"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 9,
+            "y": 2,
+            "width": 3,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "sankey",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "reconciliation_cost",
+                  "fields": [
+                    {
+                      "name": "role",
+                      "expression": "`role`"
+                    },
+                    {
+                      "name": "phase",
+                      "expression": "`phase`"
+                    },
+                    {
+                      "name": "sum(hours)",
+                      "expression": "SUM(`hours`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "frame": {
+                "title": "Resource Allocation by Role → Phase",
+                "showTitle": true,
+                "showDescription": true,
+                "description": "Width of each flow represents hours spent. Investigation dominates."
+              },
+              "widgetType": "sankey",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(hours)",
+                  "displayName": "Hours"
+                },
+                "stages": [
+                  {
+                    "fieldName": "role",
+                    "displayName": "Role"
+                  },
+                  {
+                    "fieldName": "phase",
+                    "displayName": "Phase"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 4,
+            "width": 7,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "waterfall",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "reconciliation_cost",
+                  "fields": [
+                    {
+                      "name": "phase",
+                      "expression": "`phase`"
+                    },
+                    {
+                      "name": "sum(cost)",
+                      "expression": "SUM(`cost`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Cumulative Cost by Phase",
+                "showTitle": true,
+                "showDescription": true,
+                "description": "Watch costs accumulate. Investigation is the largest single phase."
+              },
+              "widgetType": "waterfall",
+              "encodings": {
+                "x": {
+                  "fieldName": "phase",
+                  "axis": {
+                    "hideTitle": true,
+                    "labelAngle": 45
+                  },
+                  "displayName": "Phase",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "custom-order",
+                      "orderedValues": [
+                        "Discovery & Escalation",
+                        "Reconciliation Meeting",
+                        "Root Cause Investigation",
+                        "Remediation",
+                        "Validation & Regeneration",
+                        "Prevention & Governance"
+                      ]
+                    }
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(cost)",
+                  "format": {
+                    "type": "number-currency",
+                    "abbreviation": "none",
+                    "currencyCode": "USD"
+                  },
+                  "displayName": "Cost",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 7,
+            "y": 4,
+            "width": 5,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "detail_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "reconciliation_cost",
+                  "fields": [
+                    {
+                      "name": "phase",
+                      "expression": "`phase`"
+                    },
+                    {
+                      "name": "role",
+                      "expression": "`role`"
+                    },
+                    {
+                      "name": "hours",
+                      "expression": "`hours`"
+                    },
+                    {
+                      "name": "hourly_rate",
+                      "expression": "`hourly_rate`"
+                    },
+                    {
+                      "name": "cost",
+                      "expression": "`cost`"
+                    },
+                    {
+                      "name": "activity",
+                      "expression": "`activity`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Process Detail",
+                "showTitle": true
+              },
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "phase",
+                    "displayName": "Phase"
+                  },
+                  {
+                    "fieldName": "role",
+                    "displayName": "Role"
+                  },
+                  {
+                    "fieldName": "hours",
+                    "contentAlignment": "center",
+                    "displayName": "Hours"
+                  },
+                  {
+                    "fieldName": "hourly_rate",
+                    "contentAlignment": "center",
+                    "format": {
+                      "type": "number-currency",
+                      "abbreviation": "none",
+                      "currencyCode": "USD"
+                    },
+                    "displayName": "Rate ($/hr)"
+                  },
+                  {
+                    "fieldName": "cost",
+                    "contentAlignment": "center",
+                    "format": {
+                      "type": "number-currency",
+                      "abbreviation": "none",
+                      "currencyCode": "USD"
+                    },
+                    "displayName": "Cost"
+                  },
+                  {
+                    "fieldName": "activity",
+                    "displayName": "Activity"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 11,
+            "width": 12,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "closing",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## The Alternative: Proactive Data Quality\n",
+                "\n",
+                "| | Reactive (Current) | Proactive (With DQ Monitoring) |\n",
+                "| --- | --- | --- |\n",
+                "| Time to detect | 6–8 weeks (CEO finds it) | < 1 hour (automated alert) |\n",
+                "| People involved | 12 | 1–2 (data engineer + owner) |\n",
+                "| Cost | $31K+ labor | < $500 (automated fix) |\n",
+                "| Decision delay | 1 quarter | None |\n",
+                "| Trust erosion | Finance vs. Ops conflict | Shared single source of truth |\n",
+                "\n",
+                "**With a shared metrics layer and automated DQ checks**, the divergence never reaches the CEO — it's caught at ingest, flagged, and resolved before reports are generated."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 18,
+            "width": 12,
+            "height": 10
           }
         }
       ],
