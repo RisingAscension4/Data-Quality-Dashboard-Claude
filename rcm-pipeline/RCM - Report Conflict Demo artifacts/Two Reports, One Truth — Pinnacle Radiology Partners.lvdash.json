@@ -370,7 +370,7 @@
             "x": 6,
             "y": 2,
             "width": 6,
-            "height": 7
+            "height": 5
           }
         },
         {
@@ -435,11 +435,13 @@
               "lines": [
                 "## What This Dashboard Shows\n",
                 "\n",
-                "| Tab | Content |\n",
-                "| --- | --- |\n",
-                "| **Executive Summary** | What divergence looks like when the CEO sees it — 6 KPIs, two different answers |\n",
-                "| **Root Cause** | Why it happens — 8 data quality defects across 6 dimensions, with business context |\n",
-                "| **Business Impact** | What it costs — $33K, 208 hours, 12 people, 6 weeks of delayed decisions |\n",
+                "**Executive Summary** — What divergence looks like when the CEO sees it: 6 KPIs, two different answers.\n",
+                "\n",
+                "**Root Cause** — Why it happens: 8 data quality defects across 6 dimensions, with business context.\n",
+                "\n",
+                "**Business Impact** — What it costs: $33K, 208 hours, 12 people, 6 weeks of delayed decisions.\n",
+                "\n",
+                "---\n",
                 "\n",
                 "This is the **\"before\" picture** — the world without a trusted self-service analytics layer. The Genie Workbench demo is the **\"after\"** — where the same questions get trusted answers in seconds, with quality baked in and confidence communicated transparently."
               ]
@@ -488,7 +490,7 @@
           "position": {
             "x": 0,
             "y": 9,
-            "width": 12,
+            "width": 6,
             "height": 1
           }
         },
@@ -528,7 +530,7 @@
           "position": {
             "x": 0,
             "y": 14,
-            "width": 12,
+            "width": 6,
             "height": 1
           }
         },
@@ -537,15 +539,15 @@
             "name": "e9e1392c",
             "multilineTextboxSpec": {
               "lines": [
-                ""
+                "<img src=\"https://raw.githubusercontent.com/RisingAscension4/Data-Quality-Dashboard-Claude/rcm_demo/rcm-pipeline/RCM%20-%20Report%20Conflict%20Demo%20artifacts/images/Gemini_Generated_Image_v1ytdov1ytdov1yt.png\" width=\"100%\" />"
               ]
             }
           },
           "position": {
             "x": 6,
-            "y": 10,
+            "y": 7,
             "width": 6,
-            "height": 4
+            "height": 8
           }
         }
       ],
@@ -1286,7 +1288,7 @@
             "x": 0,
             "y": 7,
             "width": 4,
-            "height": 7
+            "height": 8
           }
         },
         {
@@ -1314,7 +1316,7 @@
             "x": 4,
             "y": 7,
             "width": 4,
-            "height": 7
+            "height": 8
           }
         },
         {
@@ -1342,7 +1344,7 @@
             "x": 8,
             "y": 7,
             "width": 4,
-            "height": 7
+            "height": 8
           }
         },
         {
@@ -1368,7 +1370,7 @@
           },
           "position": {
             "x": 0,
-            "y": 14,
+            "y": 15,
             "width": 4,
             "height": 8
           }
@@ -1396,7 +1398,7 @@
           },
           "position": {
             "x": 4,
-            "y": 14,
+            "y": 15,
             "width": 4,
             "height": 8
           }
@@ -1424,7 +1426,7 @@
           },
           "position": {
             "x": 8,
-            "y": 14,
+            "y": 15,
             "width": 4,
             "height": 8
           }
