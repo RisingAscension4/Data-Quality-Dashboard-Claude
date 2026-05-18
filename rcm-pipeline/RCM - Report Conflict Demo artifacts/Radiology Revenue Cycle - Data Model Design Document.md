@@ -42,6 +42,52 @@ This is what makes data quality a business problem, not a technical one. The fix
 
 ---
 
+## Provenance Trail — What Trusted Self-Service Looks Like
+
+When a self-service analytics platform delivers an answer, **provenance** is what converts that answer into a *trusted* answer. A provenance trail means the consumer can see exactly how an answer was derived — not just the number, but the full chain of evidence behind it.
+
+### What a Provenance Trail Contains
+
+1. **Source Tables** — "This answer came from `claim_header`, `payment`, and `payer` tables"
+2. **Business Logic** — "Net Collection Rate = SUM(payments) ÷ SUM(allowed) where allowed IS NOT NULL"
+3. **Metric Definitions** — "Using the Finance-approved 'Net Collection Rate' metric view, version 3, last updated April 2026"
+4. **Data Freshness** — "Source tables last updated today at 6:00 AM via pipeline run #4521"
+5. **Exclusions & Flags** — "238 claims excluded due to NULL allowed_amount (8% exclusion rate)"
+
+### Why It Matters
+
+Without provenance, self-service analytics produces fast responses that nobody acts on — because they can't verify the reasoning. The difference is:
+
+- **Without**: "Your collection rate is 83%" → *black box — do you trust it?*
+- **With**: "Your collection rate is 83%, derived from [these tables] using [this logic] with [this freshness] and [these exclusions]" → *transparent — you can verify it*
+
+### How It Maps to Databricks
+
+| Provenance Component | Databricks Capability |
+|---------------------|----------------------|
+| Source Tables | Unity Catalog lineage (table + column level) |
+| Business Logic | Metric view definitions (standardized formulas) |
+| Metric Definitions | Unity Catalog metric views with versioning |
+| Data Freshness | Pipeline run metadata, table `TBLPROPERTIES` timestamps |
+| Exclusions & Flags | Genie trust metrics, DQ check results surfaced at query time |
+
+### The Three-Layer Trust Model
+
+Self-service analytics requires three layers working together:
+
+| Layer | What It Does | Without It |
+|-------|-------------|-----------|
+| **Self-Service Analytics** | Anyone can ask questions of the data directly | 3–4 week wait for every answer |
+| **Data Quality Foundation** | Ensures answers are correct before they're served | Fast access to wrong answers |
+| **Trust Metrics (Genie)** | Communicates confidence so people act on answers | A tool nobody adopts |
+
+- Self-service without quality = faster wrong answers
+- Quality without self-service = correct answers nobody can access
+- Both without trust metrics = a tool nobody adopts
+- **All three together = an organization that makes decisions at the speed of questions**
+
+---
+
 ## Organization Context
 
 **Pinnacle Radiology Partners** — A 12-location outpatient radiology group:
