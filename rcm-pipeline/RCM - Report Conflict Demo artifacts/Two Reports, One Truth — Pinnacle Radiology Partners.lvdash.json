@@ -437,7 +437,7 @@
                 "\n",
                 "**Executive Summary** — What divergence looks like when the CEO sees it: 6 KPIs, two different answers.\n",
                 "\n",
-                "**Root Cause** — Why it happens: 8 data quality defects across 6 dimensions, with business context.\n",
+                "**Root Cause** — Why it happens: data quality defects, no shared semantic model, and no trust signals.\n",
                 "\n",
                 "**Business Impact** — What it costs: $33K, 208 hours, 12 people, 6 weeks of delayed decisions.\n",
                 "\n",
@@ -558,28 +558,6 @@
       "name": "58fcbef9",
       "displayName": "Executive Summary — Two Reports, One Truth",
       "layout": [
-        {
-          "widget": {
-            "name": "header",
-            "multilineTextboxSpec": {
-              "lines": [
-                "## Two Reports, One Truth\n",
-                "\n",
-                "Same data, different business logic, divergent KPIs. \n",
-                "\n",
-                "**Report A** (Finance/CFO): Conservative, exclusion-based — \"Only count what we can validate\"\n",
-                "\n",
-                "**Report B** (Revenue Ops): Inclusive, count-everything — \"Count everything until proven invalid\""
-              ]
-            }
-          },
-          "position": {
-            "x": 0,
-            "y": 0,
-            "width": 12,
-            "height": 3
-          }
-        },
         {
           "widget": {
             "name": "counter_net_collections",
@@ -1162,23 +1140,19 @@
             "width": 6,
             "height": 5
           }
-        }
-      ],
-      "pageType": "PAGE_TYPE_CANVAS",
-      "layoutVersion": "GRID_V1"
-    },
-    {
-      "name": "root_cause",
-      "displayName": "Root Cause — Data Quality Defects",
-      "layout": [
+        },
         {
           "widget": {
-            "name": "header",
+            "name": "abcd807b",
             "multilineTextboxSpec": {
               "lines": [
-                "## Root Cause — 8 Data Quality Defects Across 6 Dimensions\n",
+                "## Two Reports, One Truth\n",
                 "\n",
-                "The **same underlying tables** are queried by both reports — the difference is how each team handles ambiguous or defective data."
+                "Same data, different business logic, divergent KPIs.\n",
+                "\n",
+                "**Report A** (Finance/CFO): Conservative, exclusion-based — \"Only count what we can validate\"\n",
+                "\n",
+                "**Report B** (Revenue Ops): Inclusive, count-everything — \"Count everything until proven invalid\""
               ]
             }
           },
@@ -1186,318 +1160,7 @@
             "x": 0,
             "y": 0,
             "width": 12,
-            "height": 2
-          }
-        },
-        {
-          "widget": {
-            "name": "defect_table",
-            "queries": [
-              {
-                "name": "main_query",
-                "query": {
-                  "datasetName": "report_divergence",
-                  "fields": [
-                    {
-                      "name": "root_cause",
-                      "expression": "`root_cause`"
-                    },
-                    {
-                      "name": "kpi",
-                      "expression": "`kpi`"
-                    },
-                    {
-                      "name": "divergence",
-                      "expression": "`divergence`"
-                    },
-                    {
-                      "name": "explanation",
-                      "expression": "`explanation`"
-                    }
-                  ],
-                  "disaggregated": true
-                }
-              }
-            ],
-            "spec": {
-              "version": 2,
-              "frame": {
-                "title": "Defect Impact Summary",
-                "showTitle": true
-              },
-              "widgetType": "table",
-              "encodings": {
-                "columns": [
-                  {
-                    "fieldName": "root_cause",
-                    "displayName": "DQ Dimension"
-                  },
-                  {
-                    "fieldName": "kpi",
-                    "displayName": "Affected KPI"
-                  },
-                  {
-                    "fieldName": "divergence",
-                    "format": {
-                      "type": "number-plain",
-                      "abbreviation": "none",
-                      "decimalPlaces": {
-                        "type": "exact",
-                        "places": 1
-                      }
-                    },
-                    "displayName": "Gap"
-                  },
-                  {
-                    "fieldName": "explanation",
-                    "displayName": "How the Defect Causes Divergence"
-                  }
-                ]
-              }
-            }
-          },
-          "position": {
-            "x": 6,
-            "y": 2,
-            "width": 6,
-            "height": 5
-          }
-        },
-        {
-          "widget": {
-            "name": "completeness_detail",
-            "multilineTextboxSpec": {
-              "lines": [
-                "### COMPLETENESS\n",
-                "\n",
-                "**Calculation**: `Collection Rate = Payments Received ÷ Allowed Amount`\n",
-                "\n",
-                "**Defect**: 8% of *paid* claims have NULL `allowed_amount` — concentrated on more exepensive procedures like MRI/NM/IR\n",
-                "\n",
-                "**Business context**: If a claim is paid, the payer determined an allowed amount. NULL means the ERA/835 remittance wasn't matched to the claim — common on complex modalities where manual payments, appeals, or carve-out networks bypass standard electronic posting.\n",
-                "\n",
-                "**The real question**: Why don't 8% of paid claims have remittance data? Both teams work around a revenue posting pipeline failure instead of fixing it.\n",
-                "\n",
-                "**Report A**: Excludes these rows from the denominator<br>**Report B**: Substitutes the billed charge when `allowed_amount` is NULL. Since charges are 3–5x what payers actually allow, this massively inflates the denominator and deflates the collection rate.\n",
-                "\n",
-                "**Result**: Net Collection Rate diverges **6.5pp**"
-              ]
-            }
-          },
-          "position": {
-            "x": 0,
-            "y": 7,
-            "width": 4,
-            "height": 8
-          }
-        },
-        {
-          "widget": {
-            "name": "validity_detail",
-            "multilineTextboxSpec": {
-              "lines": [
-                "### VALIDITY\n",
-                "\n",
-                "**Calculation**: `Denial Rate = Denied Claims ÷ Total Claims Submitted`\n",
-                "\n",
-                "**Defect**: 30% of denied claims have invalid CARC codes (CO-999, PI-300, OA-500) that don't exist in the X12 835 standard\n",
-                "\n",
-                "**Business context**: Invalid CARC codes typically arise from clearinghouse translation errors or payer system migrations. When a payer upgrades their adjudication platform, denial reason codes temporarily map to placeholder values. Smaller payers and regional clearinghouses are especially prone during system transitions.\n",
-                "\n",
-                "**The real question**: Why are invalid codes persisting without correction? There's no validation on ingest and no feedback loop with the clearinghouse to fix broken mappings.\n",
-                "\n",
-                "**Report A**: Drops invalid CARCs — claims with ONLY invalid denials disappear from denied count<br>**Report B**: Counts ALL denials regardless of code validity\n",
-                "\n",
-                "**Result**: Denial Rate diverges **3.9pp**"
-              ]
-            }
-          },
-          "position": {
-            "x": 4,
-            "y": 7,
-            "width": 4,
-            "height": 8
-          }
-        },
-        {
-          "widget": {
-            "name": "timeliness_detail",
-            "multilineTextboxSpec": {
-              "lines": [
-                "### TIMELINESS\n",
-                "\n",
-                "**Calculation**: `Days in AR = Avg Days from Date of Service to Payment`\n",
-                "\n",
-                "**Defect**: Hospital-based locations (system\\_a) have AR snapshots 9 days stale (last: May 6 vs today: May 15)\n",
-                "\n",
-                "**Business context**: Hospital-based radiology relies on the hospital's HIS/RIS to push AR data via scheduled batch feeds. When hospital IT deprioritizes the feed (maintenance windows, system upgrades, staff turnover), data goes stale silently. Freestanding centers control their own systems so feeds stay current.\n",
-                "\n",
-                "**The real question**: Why is there no SLA monitoring or alerting on feed freshness? Both teams make decisions without knowing they're missing 9 days of hospital data.\n",
-                "\n",
-                "**Report A**: Uses MAX(snapshot\\_date) per location — includes hospitals' low-AR data (avg 22 days)<br>**Report B**: Filters to snapshot\\_date = TODAY — excludes hospitals entirely, leaving only freestanding (avg 60 days)\n",
-                "\n",
-                "**Result**: Days in AR diverges **13 days**"
-              ]
-            }
-          },
-          "position": {
-            "x": 8,
-            "y": 7,
-            "width": 4,
-            "height": 8
-          }
-        },
-        {
-          "widget": {
-            "name": "consistency_detail",
-            "multilineTextboxSpec": {
-              "lines": [
-                "### CONSISTENCY\n",
-                "\n",
-                "**Calculation**: `Commercial Mix = Commercial Claims ÷ Total Claims`\n",
-                "\n",
-                "**Defect**: `payer_name` has 3–5 variants per payer (e.g., \"BCBS\", \"Blue Cross BS\", \"BCBS IL\", \"BlueCross BlueShield of IL\")\n",
-                "\n",
-                "**Business context**: Payer names enter at multiple touchpoints — registration, eligibility verification, ERA posting — each using different conventions. Mergers make it worse (CVS acquired Aetna but systems still reference both). Without master data management for payer identity, variants accumulate unchecked.\n",
-                "\n",
-                "**The real question**: The canonical payer table exists (Report A uses it). Why isn't it enforced at registration so variants never enter the system?\n",
-                "\n",
-                "**Report A**: JOINs to canonical `payer` table on `payer_id` — correct classification<br>**Report B**: Pattern-matches on `payer_name` with incomplete lookup — misses \"UHC\", \"CVS/Aetna\", etc.\n",
-                "\n",
-                "**Result**: Commercial Mix diverges **19.5pp**"
-              ]
-            }
-          },
-          "position": {
-            "x": 0,
-            "y": 15,
-            "width": 4,
-            "height": 8
-          }
-        },
-        {
-          "widget": {
-            "name": "uniqueness_detail",
-            "multilineTextboxSpec": {
-              "lines": [
-                "### UNIQUENESS + ACCURACY\n",
-                "\n",
-                "**Calculation**: `Total Charges = Sum of All Billed Amounts`\n",
-                "\n",
-                "**Defect 1**: 3% of pre-Oct 2025 claims are unflagged rebill duplicates<br>**Defect 2**: 1.5% have TC/26 component overlap (global + technical + professional for same CPT)\n",
-                "\n",
-                "**Business context**: Rebills (corrected claims) are normal — modifier changes, late charge capture, auth corrections. Before Oct 2025, the billing system didn't flag them, so originals and corrections coexist without linkage. TC/26 overlap occurs during transitions between billing arrangements (e.g., radiologist moves from employed to independent).\n",
-                "\n",
-                "**The real question**: Why did rebill tracking fail for 5+ months before being fixed? And why does charge capture allow both global and component billing on the same encounter?\n",
-                "\n",
-                "**Report A**: Deduplicates by (encounter, patient, charge); removes components when global exists<br>**Report B**: Sums all claim lines naively\n",
-                "\n",
-                "**Result**: Total Charges diverges **$4.5M**"
-              ]
-            }
-          },
-          "position": {
-            "x": 4,
-            "y": 15,
-            "width": 4,
-            "height": 8
-          }
-        },
-        {
-          "widget": {
-            "name": "accuracy_detail",
-            "multilineTextboxSpec": {
-              "lines": [
-                "### ACCURACY\n",
-                "\n",
-                "**Calculation**: `Net Revenue = Sum of Allowed Amounts`\n",
-                "\n",
-                "**Defect B**: PAY-011/012 clearinghouse error sets `allowed = charge` (should be 40–60%)<br>**Defect C**: BCBS Jan–Feb 2026 uses stale fee schedule — `allowed` is 12% below actual payment\n",
-                "\n",
-                "**Business context**: Clearinghouse errors happen when the EDI translation layer fails to parse contractual adjustments from the 835 — the system defaults to charge as a fallback. Stale fee schedules occur when contract renegotiations complete (new rates effective Jan 1) but the contract management system isn't updated.\n",
-                "\n",
-                "**The real question**: Why is there no reconciliation between allowed amounts and actual payments? A simple variance alert (payment ≠ expected allowed) would catch both issues immediately.\n",
-                "\n",
-                "**Report A**: Reconciles against `payment` table; uses actual payments for affected payers<br>**Report B**: Trusts `allowed_amount` at face value\n",
-                "\n",
-                "**Result**: Net Revenue diverges **$4.1M**"
-              ]
-            }
-          },
-          "position": {
-            "x": 8,
-            "y": 15,
-            "width": 4,
-            "height": 8
-          }
-        },
-        {
-          "widget": {
-            "name": "divergence_bar",
-            "queries": [
-              {
-                "name": "main_query",
-                "query": {
-                  "datasetName": "report_divergence",
-                  "fields": [
-                    {
-                      "name": "root_cause",
-                      "expression": "`root_cause`"
-                    },
-                    {
-                      "name": "Absolute Gap",
-                      "expression": "`Absolute Gap`"
-                    }
-                  ],
-                  "disaggregated": true
-                }
-              }
-            ],
-            "spec": {
-              "frame": {
-                "title": "Divergence Magnitude by DQ Dimension",
-                "showTitle": true,
-                "showDescription": true,
-                "description": "Higher bars = greater impact from the data quality defect"
-              },
-              "version": 3,
-              "widgetType": "bar",
-              "encodings": {
-                "x": {
-                  "fieldName": "root_cause",
-                  "axis": {
-                    "hideTitle": true,
-                    "labelAngle": 45
-                  },
-                  "displayName": "DQ Dimension",
-                  "scale": {
-                    "type": "categorical",
-                    "sort": {
-                      "by": "y-reversed"
-                    }
-                  }
-                },
-                "y": {
-                  "fieldName": "Absolute Gap",
-                  "axis": {
-                    "title": "Absolute Divergence"
-                  },
-                  "displayName": "|Gap|",
-                  "scale": {
-                    "type": "quantitative"
-                  }
-                },
-                "label": {
-                  "show": true
-                }
-              }
-            }
-          },
-          "position": {
-            "x": 0,
-            "y": 2,
-            "width": 6,
-            "height": 5
+            "height": 3
           }
         }
       ],
@@ -1950,6 +1613,350 @@
             "y": 18,
             "width": 12,
             "height": 10
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    },
+    {
+      "name": "root_cause",
+      "displayName": "Root Cause",
+      "layout": [
+        {
+          "widget": {
+            "name": "defect_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "report_divergence",
+                  "fields": [
+                    {
+                      "name": "root_cause",
+                      "expression": "`root_cause`"
+                    },
+                    {
+                      "name": "kpi",
+                      "expression": "`kpi`"
+                    },
+                    {
+                      "name": "divergence",
+                      "expression": "`divergence`"
+                    },
+                    {
+                      "name": "explanation",
+                      "expression": "`explanation`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Data Quality Defect Impact Summary",
+                "showTitle": true,
+                "description": "Layer 1 only: the specific defects in the demo data and how they create visible KPI gaps."
+              },
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "root_cause",
+                    "displayName": "DQ Dimension"
+                  },
+                  {
+                    "fieldName": "kpi",
+                    "displayName": "Affected KPI"
+                  },
+                  {
+                    "fieldName": "divergence",
+                    "format": {
+                      "type": "number-plain",
+                      "abbreviation": "none",
+                      "decimalPlaces": {
+                        "type": "exact",
+                        "places": 1
+                      }
+                    },
+                    "displayName": "Gap"
+                  },
+                  {
+                    "fieldName": "explanation",
+                    "displayName": "How the Defect Causes Divergence"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 4,
+            "width": 6,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "completeness_detail",
+            "multilineTextboxSpec": {
+              "lines": [
+                "### COMPLETENESS\n",
+                "\n",
+                "**Calculation**: `Collection Rate = Payments Received ÷ Allowed Amount`\n",
+                "\n",
+                "**Defect**: 8% of *paid* claims have NULL `allowed_amount` — concentrated on more exepensive procedures like MRI/NM/IR\n",
+                "\n",
+                "**Business context**: If a claim is paid, the payer determined an allowed amount. NULL means the ERA/835 remittance wasn't matched to the claim — common on complex modalities where manual payments, appeals, or carve-out networks bypass standard electronic posting.\n",
+                "\n",
+                "**The real question**: Why don't 8% of paid claims have remittance data? Both teams work around a revenue posting pipeline failure instead of fixing it.\n",
+                "\n",
+                "**Report A**: Excludes these rows from the denominator<br>**Report B**: Substitutes the billed charge when `allowed_amount` is NULL. Since charges are 3–5x what payers actually allow, this massively inflates the denominator and deflates the collection rate.\n",
+                "\n",
+                "**Result**: Net Collection Rate diverges **6.5pp**"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 9,
+            "width": 4,
+            "height": 8
+          }
+        },
+        {
+          "widget": {
+            "name": "validity_detail",
+            "multilineTextboxSpec": {
+              "lines": [
+                "### VALIDITY\n",
+                "\n",
+                "**Calculation**: `Denial Rate = Denied Claims ÷ Total Claims Submitted`\n",
+                "\n",
+                "**Defect**: 30% of denied claims have invalid CARC codes (CO-999, PI-300, OA-500) that don't exist in the X12 835 standard\n",
+                "\n",
+                "**Business context**: Invalid CARC codes typically arise from clearinghouse translation errors or payer system migrations. When a payer upgrades their adjudication platform, denial reason codes temporarily map to placeholder values. Smaller payers and regional clearinghouses are especially prone during system transitions.\n",
+                "\n",
+                "**The real question**: Why are invalid codes persisting without correction? There's no validation on ingest and no feedback loop with the clearinghouse to fix broken mappings.\n",
+                "\n",
+                "**Report A**: Drops invalid CARCs — claims with ONLY invalid denials disappear from denied count<br>**Report B**: Counts ALL denials regardless of code validity\n",
+                "\n",
+                "**Result**: Denial Rate diverges **3.9pp**"
+              ]
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 9,
+            "width": 4,
+            "height": 8
+          }
+        },
+        {
+          "widget": {
+            "name": "timeliness_detail",
+            "multilineTextboxSpec": {
+              "lines": [
+                "### TIMELINESS\n",
+                "\n",
+                "**Calculation**: `Days in AR = Avg Days from Date of Service to Payment`\n",
+                "\n",
+                "**Defect**: Hospital-based locations (system\\_a) have AR snapshots 9 days stale (last: May 6 vs today: May 15)\n",
+                "\n",
+                "**Business context**: Hospital-based radiology relies on the hospital's HIS/RIS to push AR data via scheduled batch feeds. When hospital IT deprioritizes the feed (maintenance windows, system upgrades, staff turnover), data goes stale silently. Freestanding centers control their own systems so feeds stay current.\n",
+                "\n",
+                "**The real question**: Why is there no SLA monitoring or alerting on feed freshness? Both teams make decisions without knowing they're missing 9 days of hospital data.\n",
+                "\n",
+                "**Report A**: Uses MAX(snapshot\\_date) per location — includes hospitals' low-AR data (avg 22 days)<br>**Report B**: Filters to snapshot\\_date = TODAY — excludes hospitals entirely, leaving only freestanding (avg 60 days)\n",
+                "\n",
+                "**Result**: Days in AR diverges **13 days**"
+              ]
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 9,
+            "width": 4,
+            "height": 8
+          }
+        },
+        {
+          "widget": {
+            "name": "consistency_detail",
+            "multilineTextboxSpec": {
+              "lines": [
+                "### CONSISTENCY\n",
+                "\n",
+                "**Calculation**: `Commercial Mix = Commercial Claims ÷ Total Claims`\n",
+                "\n",
+                "**Defect**: `payer_name` has 3–5 variants per payer (e.g., \"BCBS\", \"Blue Cross BS\", \"BCBS IL\", \"BlueCross BlueShield of IL\")\n",
+                "\n",
+                "**Business context**: Payer names enter at multiple touchpoints — registration, eligibility verification, ERA posting — each using different conventions. Mergers make it worse (CVS acquired Aetna but systems still reference both). Without master data management for payer identity, variants accumulate unchecked.\n",
+                "\n",
+                "**The real question**: The canonical payer table exists (Report A uses it). Why isn't it enforced at registration so variants never enter the system?\n",
+                "\n",
+                "**Report A**: JOINs to canonical `payer` table on `payer_id` — correct classification<br>**Report B**: Pattern-matches on `payer_name` with incomplete lookup — misses \"UHC\", \"CVS/Aetna\", etc.\n",
+                "\n",
+                "**Result**: Commercial Mix diverges **19.5pp**"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 17,
+            "width": 4,
+            "height": 8
+          }
+        },
+        {
+          "widget": {
+            "name": "uniqueness_detail",
+            "multilineTextboxSpec": {
+              "lines": [
+                "### UNIQUENESS + ACCURACY\n",
+                "\n",
+                "**Calculation**: `Total Charges = Sum of All Billed Amounts`\n",
+                "\n",
+                "**Defect 1**: 3% of pre-Oct 2025 claims are unflagged rebill duplicates<br>**Defect 2**: 1.5% have TC/26 component overlap (global + technical + professional for same CPT)\n",
+                "\n",
+                "**Business context**: Rebills (corrected claims) are normal — modifier changes, late charge capture, auth corrections. Before Oct 2025, the billing system didn't flag them, so originals and corrections coexist without linkage. TC/26 overlap occurs during transitions between billing arrangements (e.g., radiologist moves from employed to independent).\n",
+                "\n",
+                "**The real question**: Why did rebill tracking fail for 5+ months before being fixed? And why does charge capture allow both global and component billing on the same encounter?\n",
+                "\n",
+                "**Report A**: Deduplicates by (encounter, patient, charge); removes components when global exists<br>**Report B**: Sums all claim lines naively\n",
+                "\n",
+                "**Result**: Total Charges diverges **$4.5M**"
+              ]
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 17,
+            "width": 4,
+            "height": 8
+          }
+        },
+        {
+          "widget": {
+            "name": "accuracy_detail",
+            "multilineTextboxSpec": {
+              "lines": [
+                "### ACCURACY\n",
+                "\n",
+                "**Calculation**: `Net Revenue = Sum of Allowed Amounts`\n",
+                "\n",
+                "**Defect B**: PAY-011/012 clearinghouse error sets `allowed = charge` (should be 40–60%)<br>**Defect C**: BCBS Jan–Feb 2026 uses stale fee schedule — `allowed` is 12% below actual payment\n",
+                "\n",
+                "**Business context**: Clearinghouse errors happen when the EDI translation layer fails to parse contractual adjustments from the 835 — the system defaults to charge as a fallback. Stale fee schedules occur when contract renegotiations complete (new rates effective Jan 1) but the contract management system isn't updated.\n",
+                "\n",
+                "**The real question**: Why is there no reconciliation between allowed amounts and actual payments? A simple variance alert (payment ≠ expected allowed) would catch both issues immediately.\n",
+                "\n",
+                "**Report A**: Reconciles against `payment` table; uses actual payments for affected payers<br>**Report B**: Trusts `allowed_amount` at face value\n",
+                "\n",
+                "**Result**: Net Revenue diverges **$4.1M**"
+              ]
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 17,
+            "width": 4,
+            "height": 8
+          }
+        },
+        {
+          "widget": {
+            "name": "divergence_bar",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "report_divergence",
+                  "fields": [
+                    {
+                      "name": "root_cause",
+                      "expression": "`root_cause`"
+                    },
+                    {
+                      "name": "Absolute Gap",
+                      "expression": "`Absolute Gap`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "title": "Divergence Magnitude by Data Quality Defect",
+                "showTitle": true,
+                "showDescription": true,
+                "description": "This isolates layer 1 of the problem: how much each data quality defect contributes to KPI divergence."
+              },
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "root_cause",
+                  "axis": {
+                    "hideTitle": true,
+                    "labelAngle": 45
+                  },
+                  "displayName": "DQ Dimension",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "y-reversed"
+                    }
+                  }
+                },
+                "y": {
+                  "fieldName": "Absolute Gap",
+                  "axis": {
+                    "title": "Absolute Divergence"
+                  },
+                  "displayName": "|Gap|",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 4,
+            "width": 6,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "d2e486ad",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Root Cause — Three Problems, One Outcome\n",
+                "\n",
+                "The divergence is not caused by one thing. It comes from **three stacked failures**:\n",
+                "\n",
+                "1. **Data quality defects** — NULLs, invalid codes, stale snapshots, duplicates, and naming variants distort the facts.\n",
+                "2. **No shared semantic model** — Finance and RevOps use different but defensible KPI definitions because there is no canonical metric layer.\n",
+                "3. **No trust metrics** — the system gives no freshness, quality, or confidence signal, so leaders cannot tell when numbers are safe to use.\n",
+                "\n",
+                "But the broader root cause is architectural: bad data, inconsistent definitions, and missing trust signals."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 12,
+            "height": 4
           }
         }
       ],
