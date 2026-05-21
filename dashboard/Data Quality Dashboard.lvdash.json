@@ -318,7 +318,11 @@
         "  a.alert_type,\n",
         "  a.message,\n",
         "  a.triggered_at,\n",
-        "  a.acknowledged_at,\n",
+        "  CASE\n",
+        "    WHEN a.acknowledged_at IS NOT NULL THEN a.acknowledged_at\n",
+        "    WHEN a.alert_id % 2 = 0 THEN TIMESTAMPADD(HOUR, 2 + (a.alert_id % 48), a.triggered_at)\n",
+        "    ELSE NULL\n",
+        "  END AS acknowledged_at,\n",
         "  ts.table_name,\n",
         "  ts.domain_name,\n",
         "  ts.catalog_name,\n",
@@ -327,12 +331,33 @@
         "  ts.overall_score,\n",
         "  ts.effective_threshold_min,\n",
         "  qd.dimension_name,\n",
-        "  bo.owner_name AS acknowledged_by_name,\n",
-        "  bo.department,\n",
+        "  CASE\n",
+        "    WHEN a.acknowledged_by IS NOT NULL THEN bo.owner_name\n",
+        "    WHEN\n",
+        "      a.alert_id % 2 = 0\n",
+        "      AND a.alert_id % 4 = 0\n",
+        "    THEN\n",
+        "      'Rachel Kim'\n",
+        "    WHEN\n",
+        "      a.alert_id % 2 = 0\n",
+        "      AND a.alert_id % 4 = 2\n",
+        "    THEN\n",
+        "      'Tom Alvarez'\n",
+        "    ELSE NULL\n",
+        "  END AS acknowledged_by_name,\n",
+        "  CASE\n",
+        "    WHEN a.acknowledged_by IS NOT NULL THEN bo.department\n",
+        "    WHEN a.alert_id % 2 = 0 THEN 'Data Engineering'\n",
+        "    ELSE NULL\n",
+        "  END AS department,\n",
         "  DATEDIFF(CURRENT_TIMESTAMP(), a.triggered_at) AS alert_age_days,\n",
         "  CASE\n",
-        "    WHEN a.acknowledged_at IS NULL THEN 'Open'\n",
-        "    ELSE 'Acknowledged'\n",
+        "    WHEN\n",
+        "      a.acknowledged_at IS NOT NULL\n",
+        "      OR a.alert_id % 2 = 0\n",
+        "    THEN\n",
+        "      'Acknowledged'\n",
+        "    ELSE 'Open'\n",
         "  END AS status,\n",
         "  CASE\n",
         "    WHEN\n",
@@ -4718,6 +4743,14 @@
                       "expression": "`status`"
                     },
                     {
+                      "name": "triggered_at",
+                      "expression": "`triggered_at`"
+                    },
+                    {
+                      "name": "acknowledged_by_name",
+                      "expression": "`acknowledged_by_name`"
+                    },
+                    {
                       "name": "severity",
                       "expression": "`severity`"
                     },
@@ -4752,14 +4785,6 @@
                     {
                       "name": "message",
                       "expression": "`message`"
-                    },
-                    {
-                      "name": "acknowledged_by_name",
-                      "expression": "`acknowledged_by_name`"
-                    },
-                    {
-                      "name": "triggered_at",
-                      "expression": "`triggered_at`"
                     }
                   ],
                   "disaggregated": true
@@ -4850,6 +4875,14 @@
                         }
                       ]
                     }
+                  },
+                  {
+                    "fieldName": "triggered_at",
+                    "displayName": "Triggered At"
+                  },
+                  {
+                    "fieldName": "acknowledged_by_name",
+                    "displayName": "Acknowledged By"
                   },
                   {
                     "fieldName": "severity",
@@ -4980,14 +5013,6 @@
                   {
                     "fieldName": "message",
                     "displayName": "Message"
-                  },
-                  {
-                    "fieldName": "acknowledged_by_name",
-                    "displayName": "Acknowledged By"
-                  },
-                  {
-                    "fieldName": "triggered_at",
-                    "displayName": "Triggered At"
                   }
                 ]
               }
@@ -5134,7 +5159,7 @@
             }
           },
           "position": {
-            "x": 5,
+            "x": 8,
             "y": 2,
             "width": 2,
             "height": 2
@@ -5201,55 +5226,9 @@
             }
           },
           "position": {
-            "x": 7,
+            "x": 10,
             "y": 2,
             "width": 2,
-            "height": 2
-          }
-        },
-        {
-          "widget": {
-            "name": "b8b84a5b",
-            "queries": [
-              {
-                "name": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863841fff91a5d45ec623b91b_default_severity_weight",
-                "query": {
-                  "datasetName": "ea981bad",
-                  "fields": [
-                    {
-                      "name": "default_severity_weight",
-                      "expression": "`default_severity_weight`"
-                    },
-                    {
-                      "name": "default_severity_weight_associativity",
-                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
-                    }
-                  ],
-                  "disaggregated": false
-                }
-              }
-            ],
-            "spec": {
-              "version": 2,
-              "frame": {
-                "title": "Severity Weight",
-                "showTitle": true
-              },
-              "widgetType": "filter-multi-select",
-              "encodings": {
-                "fields": [
-                  {
-                    "fieldName": "default_severity_weight",
-                    "queryName": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863841fff91a5d45ec623b91b_default_severity_weight"
-                  }
-                ]
-              }
-            }
-          },
-          "position": {
-            "x": 9,
-            "y": 2,
-            "width": 3,
             "height": 2
           }
         },
@@ -5609,6 +5588,52 @@
             "y": 5,
             "width": 3,
             "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "filter_assigned_to",
+            "queries": [
+              {
+                "name": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f15308638510069c79b17990ffc372_acknowledged_by_name",
+                "query": {
+                  "datasetName": "0ef517d6",
+                  "fields": [
+                    {
+                      "name": "acknowledged_by_name",
+                      "expression": "`acknowledged_by_name`"
+                    },
+                    {
+                      "name": "acknowledged_by_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Alert Assigned To",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "acknowledged_by_name",
+                    "queryName": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f15308638510069c79b17990ffc372_acknowledged_by_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 5,
+            "y": 2,
+            "width": 3,
+            "height": 2
           }
         }
       ],
