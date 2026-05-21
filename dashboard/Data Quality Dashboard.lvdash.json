@@ -310,7 +310,7 @@
     },
     {
       "name": "0ef517d6",
-      "displayName": "Table Alerts",
+      "displayName": "Alert Triage",
       "queryLines": [
         "SELECT\n",
         "  a.alert_id,\n",
@@ -323,16 +323,44 @@
         "  ts.domain_name,\n",
         "  ts.catalog_name,\n",
         "  ts.schema_name,\n",
-        "  qd.dimension_name,\n",
+        "  ts.is_critical,\n",
         "  ts.overall_score,\n",
-        "  ts.effective_threshold_min\n",
+        "  ts.effective_threshold_min,\n",
+        "  qd.dimension_name,\n",
+        "  bo.owner_name AS acknowledged_by_name,\n",
+        "  bo.department,\n",
+        "  DATEDIFF(CURRENT_TIMESTAMP(), a.triggered_at) AS alert_age_days,\n",
+        "  CASE\n",
+        "    WHEN a.acknowledged_at IS NULL THEN 'Open'\n",
+        "    ELSE 'Acknowledged'\n",
+        "  END AS status,\n",
+        "  CASE\n",
+        "    WHEN\n",
+        "      a.severity = 'critical'\n",
+        "      AND ts.is_critical\n",
+        "    THEN\n",
+        "      1\n",
+        "    WHEN a.severity = 'critical' THEN 2\n",
+        "    WHEN\n",
+        "      a.severity = 'warning'\n",
+        "      AND ts.is_critical\n",
+        "    THEN\n",
+        "      3\n",
+        "    WHEN a.severity = 'warning' THEN 4\n",
+        "    ELSE 5\n",
+        "  END AS priority_rank\n",
         "FROM\n",
         "  serverless_stable_jc9zgx_catalog.data_quality.dq_alert a\n",
         "    JOIN serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest ts\n",
         "      ON a.entity_id = ts.table_id\n",
         "      AND a.entity_type = 'table'\n",
         "    LEFT JOIN serverless_stable_jc9zgx_catalog.data_quality.quality_dimension qd\n",
-        "      ON a.dimension_id = qd.dimension_id"
+        "      ON a.dimension_id = qd.dimension_id\n",
+        "    LEFT JOIN serverless_stable_jc9zgx_catalog.data_quality.business_owner bo\n",
+        "      ON a.acknowledged_by = bo.owner_id\n",
+        "ORDER BY\n",
+        "  priority_rank ASC,\n",
+        "  alert_age_days DESC"
       ],
       "columns": [
         {
@@ -370,6 +398,41 @@
           "description": "Yes if table is below minimum threshold",
           "expression": "CASE WHEN `overall_score` < `effective_threshold_min` THEN 'Yes' ELSE 'No' END"
         }
+      ]
+    },
+    {
+      "name": "critical_compliance",
+      "displayName": "Critical Table Compliance",
+      "queryLines": [
+        "SELECT\n",
+        "  COUNT(*) AS total_critical_tables,\n",
+        "  SUM(\n",
+        "    CASE\n",
+        "      WHEN overall_score >= effective_threshold_min THEN 1\n",
+        "      ELSE 0\n",
+        "    END\n",
+        "  ) AS meeting_threshold,\n",
+        "  SUM(\n",
+        "    CASE\n",
+        "      WHEN overall_score < effective_threshold_min THEN 1\n",
+        "      ELSE 0\n",
+        "    END\n",
+        "  ) AS failing_threshold,\n",
+        "  ROUND(\n",
+        "    100.0\n",
+        "      * SUM(\n",
+        "        CASE\n",
+        "          WHEN overall_score >= effective_threshold_min THEN 1\n",
+        "          ELSE 0\n",
+        "        END\n",
+        "      )\n",
+        "      / COUNT(*),\n",
+        "    1\n",
+        "  ) AS pct_critical_meeting_threshold\n",
+        "FROM\n",
+        "  serverless_stable_jc9zgx_catalog.data_quality.v_table_scores_latest\n",
+        "WHERE\n",
+        "  is_critical = true"
       ]
     }
   ],
@@ -412,7 +475,7 @@
           },
           "position": {
             "x": 0,
-            "y": 0,
+            "y": 1,
             "width": 3,
             "height": 3
           }
@@ -474,9 +537,9 @@
             }
           },
           "position": {
-            "x": 0,
-            "y": 3,
-            "width": 6,
+            "x": 8,
+            "y": 4,
+            "width": 4,
             "height": 6
           }
         },
@@ -515,7 +578,7 @@
           },
           "position": {
             "x": 3,
-            "y": 0,
+            "y": 1,
             "width": 2,
             "height": 3
           }
@@ -555,7 +618,7 @@
           },
           "position": {
             "x": 5,
-            "y": 0,
+            "y": 1,
             "width": 2,
             "height": 3
           }
@@ -595,7 +658,7 @@
           },
           "position": {
             "x": 7,
-            "y": 0,
+            "y": 1,
             "width": 2,
             "height": 3
           }
@@ -635,7 +698,7 @@
           },
           "position": {
             "x": 9,
-            "y": 0,
+            "y": 1,
             "width": 1,
             "height": 3
           }
@@ -718,77 +781,10 @@
             }
           },
           "position": {
-            "x": 6,
-            "y": 3,
-            "width": 6,
+            "x": 0,
+            "y": 4,
+            "width": 4,
             "height": 6
-          }
-        },
-        {
-          "widget": {
-            "name": "b1b61d7b",
-            "queries": [
-              {
-                "name": "main_query",
-                "query": {
-                  "datasetName": "801238e1",
-                  "fields": [
-                    {
-                      "name": "total_monitored_columns",
-                      "expression": "`total_monitored_columns`"
-                    },
-                    {
-                      "name": "pct_columns_failing",
-                      "expression": "`pct_columns_failing`"
-                    }
-                  ],
-                  "disaggregated": true
-                }
-              }
-            ],
-            "spec": {
-              "version": 2,
-              "frame": {
-                "title": "% Columns Failing at Least One Rule",
-                "showTitle": true
-              },
-              "widgetType": "counter",
-              "encodings": {
-                "value": {
-                  "fieldName": "pct_columns_failing",
-                  "format": {
-                    "type": "number-plain",
-                    "decimalPlaces": {
-                      "type": "exact",
-                      "places": 1
-                    },
-                    "abbreviation": "none"
-                  },
-                  "displayName": "% Columns Failing"
-                },
-                "target": {
-                  "fieldName": "total_monitored_columns",
-                  "format": {
-                    "type": "number-plain",
-                    "decimalPlaces": {
-                      "type": "exact",
-                      "places": 0
-                    },
-                    "abbreviation": "none"
-                  },
-                  "change": {
-                    "type": "numeric"
-                  },
-                  "displayName": "Total Monitored Columns"
-                }
-              }
-            }
-          },
-          "position": {
-            "x": 10,
-            "y": 0,
-            "width": 2,
-            "height": 3
           }
         },
         {
@@ -845,7 +841,37 @@
                   },
                   "displayName": "domain_name",
                   "scale": {
-                    "type": "categorical"
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "Revenue Cycle",
+                        "color": "#FF6F00"
+                      },
+                      {
+                        "value": "Clinical",
+                        "color": "#1976D2"
+                      },
+                      {
+                        "value": "Pharmacy",
+                        "color": "#388E3C"
+                      },
+                      {
+                        "value": "Lab & Diagnostics",
+                        "color": "#7B1FA2"
+                      },
+                      {
+                        "value": "HR & Workforce",
+                        "color": "#00838F"
+                      },
+                      {
+                        "value": "Supply Chain",
+                        "color": "#5D4037"
+                      },
+                      {
+                        "value": "Finance",
+                        "color": "#C62828"
+                      }
+                    ]
                   }
                 },
                 "label": {
@@ -856,7 +882,7 @@
           },
           "position": {
             "x": 6,
-            "y": 16,
+            "y": 18,
             "width": 6,
             "height": 7
           }
@@ -917,10 +943,10 @@
             }
           },
           "position": {
-            "x": 0,
-            "y": 9,
-            "width": 6,
-            "height": 4
+            "x": 4,
+            "y": 4,
+            "width": 4,
+            "height": 6
           }
         },
         {
@@ -981,7 +1007,37 @@
                   },
                   "displayName": "domain_name",
                   "scale": {
-                    "type": "categorical"
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "Revenue Cycle",
+                        "color": "#FF6F00"
+                      },
+                      {
+                        "value": "Clinical",
+                        "color": "#1976D2"
+                      },
+                      {
+                        "value": "Pharmacy",
+                        "color": "#388E3C"
+                      },
+                      {
+                        "value": "Lab & Diagnostics",
+                        "color": "#7B1FA2"
+                      },
+                      {
+                        "value": "HR & Workforce",
+                        "color": "#00838F"
+                      },
+                      {
+                        "value": "Supply Chain",
+                        "color": "#5D4037"
+                      },
+                      {
+                        "value": "Finance",
+                        "color": "#C62828"
+                      }
+                    ]
                   }
                 },
                 "label": {
@@ -992,7 +1048,7 @@
           },
           "position": {
             "x": 0,
-            "y": 13,
+            "y": 11,
             "width": 6,
             "height": 7
           }
@@ -1004,7 +1060,7 @@
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "9f6037b5",
+                  "datasetName": "8bd95e9a",
                   "fields": [
                     {
                       "name": "domain_name",
@@ -1054,7 +1110,37 @@
                   },
                   "displayName": "domain_name",
                   "scale": {
-                    "type": "categorical"
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "Revenue Cycle",
+                        "color": "#FF6F00"
+                      },
+                      {
+                        "value": "Clinical",
+                        "color": "#1976D2"
+                      },
+                      {
+                        "value": "Pharmacy",
+                        "color": "#388E3C"
+                      },
+                      {
+                        "value": "Lab & Diagnostics",
+                        "color": "#7B1FA2"
+                      },
+                      {
+                        "value": "HR & Workforce",
+                        "color": "#00838F"
+                      },
+                      {
+                        "value": "Supply Chain",
+                        "color": "#5D4037"
+                      },
+                      {
+                        "value": "Finance",
+                        "color": "#C62828"
+                      }
+                    ]
                   }
                 },
                 "label": {
@@ -1065,7 +1151,7 @@
           },
           "position": {
             "x": 6,
-            "y": 9,
+            "y": 11,
             "width": 6,
             "height": 7
           }
@@ -1148,9 +1234,220 @@
           },
           "position": {
             "x": 0,
-            "y": 20,
+            "y": 18,
             "width": 6,
             "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "critical_compliance_counter",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "critical_compliance",
+                  "fields": [
+                    {
+                      "name": "total_critical_tables",
+                      "expression": "`total_critical_tables`"
+                    },
+                    {
+                      "name": "pct_critical_meeting_threshold",
+                      "expression": "`pct_critical_meeting_threshold`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "% Critical Tables Meeting Threshold",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "pct_critical_meeting_threshold",
+                  "format": {
+                    "type": "number-plain",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 1
+                    },
+                    "abbreviation": "none"
+                  },
+                  "displayName": "% Critical Tables Compliant"
+                },
+                "target": {
+                  "fieldName": "total_critical_tables",
+                  "format": {
+                    "type": "number-plain",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 0
+                    },
+                    "abbreviation": "none"
+                  },
+                  "change": {
+                    "type": "numeric"
+                  },
+                  "displayName": "Total Critical Tables"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 10,
+            "y": 1,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "critical_tables_failing",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "8bd95e9a",
+                  "fields": [
+                    {
+                      "name": "domain_name",
+                      "expression": "`domain_name`"
+                    },
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "overall_score",
+                      "expression": "`overall_score`"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`is_critical` = true"
+                    },
+                    {
+                      "expression": "`overall_score` < `effective_threshold_min`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Business Critical Tables Failing Quality Threshold",
+                "showTitle": true
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "table_name",
+                  "displayName": "Table",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "y"
+                    }
+                  }
+                },
+                "y": {
+                  "fieldName": "overall_score",
+                  "displayName": "Overall Score",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "domain_name",
+                  "legend": {
+                    "position": "right"
+                  },
+                  "displayName": "Domain",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "Revenue Cycle",
+                        "color": "#FF6F00"
+                      },
+                      {
+                        "value": "Clinical",
+                        "color": "#1976D2"
+                      },
+                      {
+                        "value": "Pharmacy",
+                        "color": "#388E3C"
+                      },
+                      {
+                        "value": "Lab & Diagnostics",
+                        "color": "#7B1FA2"
+                      },
+                      {
+                        "value": "HR & Workforce",
+                        "color": "#00838F"
+                      },
+                      {
+                        "value": "Supply Chain",
+                        "color": "#5D4037"
+                      },
+                      {
+                        "value": "Finance",
+                        "color": "#C62828"
+                      }
+                    ]
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 25,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "f4cb9a97",
+            "multilineTextboxSpec": {
+              "lines": [
+                "# Trust and Health"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 12,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "32975edc",
+            "multilineTextboxSpec": {
+              "lines": [
+                "# Progress & Accountability"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 10,
+            "width": 12,
+            "height": 1
           }
         }
       ],
@@ -1165,7 +1462,7 @@
     },
     {
       "name": "table_data_quality",
-      "displayName": "Table Data Quality",
+      "displayName": "Data Domain Data Quality",
       "layout": [
         {
           "widget": {
@@ -1875,8 +2172,8 @@
             }
           },
           "position": {
-            "x": 9,
-            "y": 6,
+            "x": 0,
+            "y": 45,
             "width": 3,
             "height": 3
           }
@@ -2454,7 +2751,37 @@
                   },
                   "displayName": "Domain",
                   "scale": {
-                    "type": "categorical"
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "Revenue Cycle",
+                        "color": "#FF6F00"
+                      },
+                      {
+                        "value": "Clinical",
+                        "color": "#1976D2"
+                      },
+                      {
+                        "value": "Pharmacy",
+                        "color": "#388E3C"
+                      },
+                      {
+                        "value": "Lab & Diagnostics",
+                        "color": "#7B1FA2"
+                      },
+                      {
+                        "value": "HR & Workforce",
+                        "color": "#00838F"
+                      },
+                      {
+                        "value": "Supply Chain",
+                        "color": "#5D4037"
+                      },
+                      {
+                        "value": "Finance",
+                        "color": "#C62828"
+                      }
+                    ]
                   }
                 }
               }
@@ -2472,7 +2799,7 @@
             "name": "section_detail",
             "multilineTextboxSpec": {
               "lines": [
-                "## <span style=\"text-align:center;display:block;\">Table Detail</span>"
+                "# <span style=\"text-align:center;display:block;\">Data Quality Scores by Dimension</span>"
               ]
             }
           },
@@ -2545,9 +2872,9 @@
             }
           },
           "position": {
-            "x": 0,
-            "y": 26,
-            "width": 8,
+            "x": 6,
+            "y": 19,
+            "width": 6,
             "height": 7
           }
         },
@@ -2620,10 +2947,10 @@
             }
           },
           "position": {
-            "x": 6,
-            "y": 19,
+            "x": 0,
+            "y": 6,
             "width": 6,
-            "height": 7
+            "height": 5
           }
         },
         {
@@ -2760,7 +3087,7 @@
           },
           "position": {
             "x": 0,
-            "y": 34,
+            "y": 29,
             "width": 12,
             "height": 8
           }
@@ -2821,8 +3148,8 @@
             }
           },
           "position": {
-            "x": 6,
-            "y": 6,
+            "x": 9,
+            "y": 3,
             "width": 3,
             "height": 3
           }
@@ -2912,7 +3239,7 @@
             }
           },
           "position": {
-            "x": 0,
+            "x": 6,
             "y": 6,
             "width": 6,
             "height": 5
@@ -3074,7 +3401,7 @@
             "name": "89c1e61a",
             "multilineTextboxSpec": {
               "lines": [
-                "# <span style=\"text-align:center;display:block\">Overview of Table Data Quality</span>"
+                "# <span style=\"text-align:center;display:block\">Overview </span>"
               ]
             }
           },
@@ -3096,7 +3423,7 @@
           },
           "position": {
             "x": 0,
-            "y": 33,
+            "y": 26,
             "width": 12,
             "height": 1
           }
@@ -3125,6 +3452,17 @@
                     {
                       "name": "executed_rule_sql",
                       "expression": "`executed_rule_sql`"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`table_name` IN (`table_name`) OR TRUE"
+                    },
+                    {
+                      "expression": "`column_name` IN (`column_name`) OR TRUE"
+                    },
+                    {
+                      "expression": "`rule_type` IN (`rule_type`) OR TRUE"
                     }
                   ],
                   "disaggregated": true
@@ -3163,9 +3501,2197 @@
           },
           "position": {
             "x": 0,
-            "y": 42,
+            "y": 37,
             "width": 12,
             "height": 8
+          }
+        },
+        {
+          "widget": {
+            "name": "filter_rule_type",
+            "queries": [
+              {
+                "name": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863841fff91a5d45ec623b91b_rule_type",
+                "query": {
+                  "datasetName": "ea981bad",
+                  "fields": [
+                    {
+                      "name": "rule_type",
+                      "expression": "`rule_type`"
+                    },
+                    {
+                      "name": "rule_type_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Rule Type",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "rule_type",
+                    "queryName": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863841fff91a5d45ec623b91b_rule_type"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 27,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "filter_dimension",
+            "queries": [
+              {
+                "name": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863841fff91a5d45ec623b91b_dimension_name",
+                "query": {
+                  "datasetName": "ea981bad",
+                  "fields": [
+                    {
+                      "name": "dimension_name",
+                      "expression": "`dimension_name`"
+                    },
+                    {
+                      "name": "dimension_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Quality Dimension",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "dimension_name",
+                    "queryName": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863841fff91a5d45ec623b91b_dimension_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 27,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "filter_passed",
+            "queries": [
+              {
+                "name": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863841fff91a5d45ec623b91b_passed",
+                "query": {
+                  "datasetName": "ea981bad",
+                  "fields": [
+                    {
+                      "name": "passed",
+                      "expression": "`passed`"
+                    },
+                    {
+                      "name": "passed_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Passed",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "passed",
+                    "queryName": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863841fff91a5d45ec623b91b_passed"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 5,
+            "y": 27,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "filter_severity",
+            "queries": [
+              {
+                "name": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863841fff91a5d45ec623b91b_default_severity_weight",
+                "query": {
+                  "datasetName": "ea981bad",
+                  "fields": [
+                    {
+                      "name": "default_severity_weight",
+                      "expression": "`default_severity_weight`"
+                    },
+                    {
+                      "name": "default_severity_weight_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Severity Weight",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "default_severity_weight",
+                    "queryName": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863841fff91a5d45ec623b91b_default_severity_weight"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 10,
+            "y": 27,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "55312073",
+            "queries": [
+              {
+                "name": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863841ff685aa02ddc03ec1aa_table_name",
+                "query": {
+                  "datasetName": "8bd95e9a",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "table_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863841ffca6e884d3fdd12fdd_table_name",
+                "query": {
+                  "datasetName": "3d99938b",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "table_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863851002b4850b809fc455b3_table_name",
+                "query": {
+                  "datasetName": "207bb1da",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "table_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f15308638510098ed597a0f77673e2_table_name",
+                "query": {
+                  "datasetName": "fdd802ab",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "table_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863841fff91a5d45ec623b91b_table_name",
+                "query": {
+                  "datasetName": "ea981bad",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "table_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f15308638510069c79b17990ffc372_table_name",
+                "query": {
+                  "datasetName": "0ef517d6",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "table_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Table",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "table_name",
+                    "queryName": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863841ff685aa02ddc03ec1aa_table_name"
+                  },
+                  {
+                    "fieldName": "table_name",
+                    "queryName": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863841ffca6e884d3fdd12fdd_table_name"
+                  },
+                  {
+                    "fieldName": "table_name",
+                    "queryName": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863851002b4850b809fc455b3_table_name"
+                  },
+                  {
+                    "fieldName": "table_name",
+                    "queryName": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f15308638510098ed597a0f77673e2_table_name"
+                  },
+                  {
+                    "fieldName": "table_name",
+                    "queryName": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863841fff91a5d45ec623b91b_table_name"
+                  },
+                  {
+                    "fieldName": "table_name",
+                    "queryName": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f15308638510069c79b17990ffc372_table_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 27,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "column",
+            "queries": [
+              {
+                "name": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863841fff91a5d45ec623b91b_column_name",
+                "query": {
+                  "datasetName": "ea981bad",
+                  "fields": [
+                    {
+                      "name": "column_name",
+                      "expression": "`column_name`"
+                    },
+                    {
+                      "name": "column_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Column"
+              },
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "column_name",
+                    "queryName": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863841fff91a5d45ec623b91b_column_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 27,
+            "width": 3,
+            "height": 2
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    },
+    {
+      "name": "25c6fc92",
+      "displayName": "Alerts",
+      "layout": [
+        {
+          "widget": {
+            "name": "2a5694aa",
+            "queries": [
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f11f31039d1926888bf51163c529dc_domain_name",
+                "query": {
+                  "datasetName": "8bd95e9a",
+                  "fields": [
+                    {
+                      "name": "domain_name",
+                      "expression": "`domain_name`"
+                    },
+                    {
+                      "name": "domain_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230a7951141eb26cf795b00f1f07_domain_name",
+                "query": {
+                  "datasetName": "3d99938b",
+                  "fields": [
+                    {
+                      "name": "domain_name",
+                      "expression": "`domain_name`"
+                    },
+                    {
+                      "name": "domain_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d12041695bf748680ab48dc78_domain_name",
+                "query": {
+                  "datasetName": "207bb1da",
+                  "fields": [
+                    {
+                      "name": "domain_name",
+                      "expression": "`domain_name`"
+                    },
+                    {
+                      "name": "domain_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d155e1dd086f82e59d8ef8fca_domain_name",
+                "query": {
+                  "datasetName": "fdd802ab",
+                  "fields": [
+                    {
+                      "name": "domain_name",
+                      "expression": "`domain_name`"
+                    },
+                    {
+                      "name": "domain_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d104b1ec1b287457084dd40ae_domain_name",
+                "query": {
+                  "datasetName": "ea981bad",
+                  "fields": [
+                    {
+                      "name": "domain_name",
+                      "expression": "`domain_name`"
+                    },
+                    {
+                      "name": "domain_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d13e91610b568dc9647faf273_domain_name",
+                "query": {
+                  "datasetName": "0ef517d6",
+                  "fields": [
+                    {
+                      "name": "domain_name",
+                      "expression": "`domain_name`"
+                    },
+                    {
+                      "name": "domain_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Data Domain",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "domain_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f11f31039d1926888bf51163c529dc_domain_name"
+                  },
+                  {
+                    "fieldName": "domain_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230a7951141eb26cf795b00f1f07_domain_name"
+                  },
+                  {
+                    "fieldName": "domain_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d12041695bf748680ab48dc78_domain_name"
+                  },
+                  {
+                    "fieldName": "domain_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d155e1dd086f82e59d8ef8fca_domain_name"
+                  },
+                  {
+                    "fieldName": "domain_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d104b1ec1b287457084dd40ae_domain_name"
+                  },
+                  {
+                    "fieldName": "domain_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d13e91610b568dc9647faf273_domain_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 3,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "da2959b2",
+            "queries": [
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f11f31039d1926888bf51163c529dc_catalog_name",
+                "query": {
+                  "datasetName": "8bd95e9a",
+                  "fields": [
+                    {
+                      "name": "catalog_name",
+                      "expression": "`catalog_name`"
+                    },
+                    {
+                      "name": "catalog_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230a7951141eb26cf795b00f1f07_catalog_name",
+                "query": {
+                  "datasetName": "3d99938b",
+                  "fields": [
+                    {
+                      "name": "catalog_name",
+                      "expression": "`catalog_name`"
+                    },
+                    {
+                      "name": "catalog_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d12041695bf748680ab48dc78_catalog_name",
+                "query": {
+                  "datasetName": "207bb1da",
+                  "fields": [
+                    {
+                      "name": "catalog_name",
+                      "expression": "`catalog_name`"
+                    },
+                    {
+                      "name": "catalog_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d155e1dd086f82e59d8ef8fca_catalog_name",
+                "query": {
+                  "datasetName": "fdd802ab",
+                  "fields": [
+                    {
+                      "name": "catalog_name",
+                      "expression": "`catalog_name`"
+                    },
+                    {
+                      "name": "catalog_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d104b1ec1b287457084dd40ae_catalog_name",
+                "query": {
+                  "datasetName": "ea981bad",
+                  "fields": [
+                    {
+                      "name": "catalog_name",
+                      "expression": "`catalog_name`"
+                    },
+                    {
+                      "name": "catalog_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d13e91610b568dc9647faf273_catalog_name",
+                "query": {
+                  "datasetName": "0ef517d6",
+                  "fields": [
+                    {
+                      "name": "catalog_name",
+                      "expression": "`catalog_name`"
+                    },
+                    {
+                      "name": "catalog_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Catalog",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "catalog_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f11f31039d1926888bf51163c529dc_catalog_name"
+                  },
+                  {
+                    "fieldName": "catalog_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230a7951141eb26cf795b00f1f07_catalog_name"
+                  },
+                  {
+                    "fieldName": "catalog_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d12041695bf748680ab48dc78_catalog_name"
+                  },
+                  {
+                    "fieldName": "catalog_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d155e1dd086f82e59d8ef8fca_catalog_name"
+                  },
+                  {
+                    "fieldName": "catalog_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d104b1ec1b287457084dd40ae_catalog_name"
+                  },
+                  {
+                    "fieldName": "catalog_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d13e91610b568dc9647faf273_catalog_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 0,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "6685ccbb",
+            "queries": [
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f11f31039d1926888bf51163c529dc_schema_name",
+                "query": {
+                  "datasetName": "8bd95e9a",
+                  "fields": [
+                    {
+                      "name": "schema_name",
+                      "expression": "`schema_name`"
+                    },
+                    {
+                      "name": "schema_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230a7951141eb26cf795b00f1f07_schema_name",
+                "query": {
+                  "datasetName": "3d99938b",
+                  "fields": [
+                    {
+                      "name": "schema_name",
+                      "expression": "`schema_name`"
+                    },
+                    {
+                      "name": "schema_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d12041695bf748680ab48dc78_schema_name",
+                "query": {
+                  "datasetName": "207bb1da",
+                  "fields": [
+                    {
+                      "name": "schema_name",
+                      "expression": "`schema_name`"
+                    },
+                    {
+                      "name": "schema_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d155e1dd086f82e59d8ef8fca_schema_name",
+                "query": {
+                  "datasetName": "fdd802ab",
+                  "fields": [
+                    {
+                      "name": "schema_name",
+                      "expression": "`schema_name`"
+                    },
+                    {
+                      "name": "schema_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d104b1ec1b287457084dd40ae_schema_name",
+                "query": {
+                  "datasetName": "ea981bad",
+                  "fields": [
+                    {
+                      "name": "schema_name",
+                      "expression": "`schema_name`"
+                    },
+                    {
+                      "name": "schema_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d13e91610b568dc9647faf273_schema_name",
+                "query": {
+                  "datasetName": "0ef517d6",
+                  "fields": [
+                    {
+                      "name": "schema_name",
+                      "expression": "`schema_name`"
+                    },
+                    {
+                      "name": "schema_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Schema",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "schema_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f11f31039d1926888bf51163c529dc_schema_name"
+                  },
+                  {
+                    "fieldName": "schema_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230a7951141eb26cf795b00f1f07_schema_name"
+                  },
+                  {
+                    "fieldName": "schema_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d12041695bf748680ab48dc78_schema_name"
+                  },
+                  {
+                    "fieldName": "schema_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d155e1dd086f82e59d8ef8fca_schema_name"
+                  },
+                  {
+                    "fieldName": "schema_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d104b1ec1b287457084dd40ae_schema_name"
+                  },
+                  {
+                    "fieldName": "schema_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d13e91610b568dc9647faf273_schema_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 5,
+            "y": 0,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "11c60d59",
+            "queries": [
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f11f31039d1926888bf51163c529dc_table_name",
+                "query": {
+                  "datasetName": "8bd95e9a",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "table_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230a7951141eb26cf795b00f1f07_table_name",
+                "query": {
+                  "datasetName": "3d99938b",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "table_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d12041695bf748680ab48dc78_table_name",
+                "query": {
+                  "datasetName": "207bb1da",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "table_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d155e1dd086f82e59d8ef8fca_table_name",
+                "query": {
+                  "datasetName": "fdd802ab",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "table_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d104b1ec1b287457084dd40ae_table_name",
+                "query": {
+                  "datasetName": "ea981bad",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "table_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d13e91610b568dc9647faf273_table_name",
+                "query": {
+                  "datasetName": "0ef517d6",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "table_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Table",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "table_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f11f31039d1926888bf51163c529dc_table_name"
+                  },
+                  {
+                    "fieldName": "table_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230a7951141eb26cf795b00f1f07_table_name"
+                  },
+                  {
+                    "fieldName": "table_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d12041695bf748680ab48dc78_table_name"
+                  },
+                  {
+                    "fieldName": "table_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d155e1dd086f82e59d8ef8fca_table_name"
+                  },
+                  {
+                    "fieldName": "table_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d104b1ec1b287457084dd40ae_table_name"
+                  },
+                  {
+                    "fieldName": "table_name",
+                    "queryName": "dashboards/01f11f2b351f10c5aff5a454a124cf1c/datasets/01f1230d13e91610b568dc9647faf273_table_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 7,
+            "y": 0,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "09fb61fb",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ea981bad",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "column_name",
+                      "expression": "`column_name`"
+                    },
+                    {
+                      "name": "rule_name",
+                      "expression": "`rule_name`"
+                    },
+                    {
+                      "name": "dimension_name",
+                      "expression": "`dimension_name`"
+                    },
+                    {
+                      "name": "rule_type",
+                      "expression": "`rule_type`"
+                    },
+                    {
+                      "name": "passed",
+                      "expression": "`passed`"
+                    },
+                    {
+                      "name": "total_records",
+                      "expression": "`total_records`"
+                    },
+                    {
+                      "name": "failed_records",
+                      "expression": "`failed_records`"
+                    },
+                    {
+                      "name": "failure_rate",
+                      "expression": "`failure_rate`"
+                    },
+                    {
+                      "name": "raw_score",
+                      "expression": "`raw_score`"
+                    },
+                    {
+                      "name": "weighted_score",
+                      "expression": "`weighted_score`"
+                    },
+                    {
+                      "name": "egregious_flag",
+                      "expression": "`egregious_flag`"
+                    },
+                    {
+                      "name": "default_severity_weight",
+                      "expression": "`default_severity_weight`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Rule Execution Results",
+                "showTitle": true
+              },
+              "rowsPerPage": 25,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "table_name",
+                    "displayName": "Table"
+                  },
+                  {
+                    "fieldName": "column_name",
+                    "displayName": "Column"
+                  },
+                  {
+                    "fieldName": "rule_name",
+                    "displayName": "Rule Category"
+                  },
+                  {
+                    "fieldName": "dimension_name",
+                    "displayName": "Dimension"
+                  },
+                  {
+                    "fieldName": "rule_type",
+                    "displayName": "Type"
+                  },
+                  {
+                    "fieldName": "passed",
+                    "displayName": "Passed"
+                  },
+                  {
+                    "fieldName": "total_records",
+                    "displayName": "Total Records"
+                  },
+                  {
+                    "fieldName": "failed_records",
+                    "displayName": "Failed Records"
+                  },
+                  {
+                    "fieldName": "failure_rate",
+                    "displayName": "Failure Rate"
+                  },
+                  {
+                    "fieldName": "raw_score",
+                    "displayName": "Raw Score"
+                  },
+                  {
+                    "fieldName": "weighted_score",
+                    "displayName": "Weighted Score"
+                  },
+                  {
+                    "fieldName": "egregious_flag",
+                    "displayName": "Egregious"
+                  },
+                  {
+                    "fieldName": "default_severity_weight",
+                    "displayName": "Severity Weight"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 18,
+            "width": 12,
+            "height": 8
+          }
+        },
+        {
+          "widget": {
+            "name": "e9504c72",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "0ef517d6",
+                  "fields": [
+                    {
+                      "name": "count(alert_id)",
+                      "expression": "COUNT(`alert_id`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Total DQ Alerts",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "count(alert_id)",
+                  "format": {
+                    "type": "number-plain",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 0
+                    },
+                    "abbreviation": "none"
+                  },
+                  "style": {
+                    "rules": [
+                      {
+                        "condition": {
+                          "operand": {
+                            "type": "data-value",
+                            "value": "0"
+                          },
+                          "operator": ">"
+                        },
+                        "color": "#D32F2F"
+                      }
+                    ]
+                  },
+                  "displayName": "Total Alerts"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 5,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "2d7867f5",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "0ef517d6",
+                  "fields": [
+                    {
+                      "name": "priority_rank",
+                      "expression": "`priority_rank`"
+                    },
+                    {
+                      "name": "status",
+                      "expression": "`status`"
+                    },
+                    {
+                      "name": "severity",
+                      "expression": "`severity`"
+                    },
+                    {
+                      "name": "alert_age_days",
+                      "expression": "`alert_age_days`"
+                    },
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "domain_name",
+                      "expression": "`domain_name`"
+                    },
+                    {
+                      "name": "dimension_name",
+                      "expression": "`dimension_name`"
+                    },
+                    {
+                      "name": "alert_type",
+                      "expression": "`alert_type`"
+                    },
+                    {
+                      "name": "is_critical",
+                      "expression": "`is_critical`"
+                    },
+                    {
+                      "name": "overall_score",
+                      "expression": "`overall_score`"
+                    },
+                    {
+                      "name": "message",
+                      "expression": "`message`"
+                    },
+                    {
+                      "name": "acknowledged_by_name",
+                      "expression": "`acknowledged_by_name`"
+                    },
+                    {
+                      "name": "triggered_at",
+                      "expression": "`triggered_at`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Alert Triage Queue",
+                "showTitle": true
+              },
+              "rowsPerPage": 25,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "priority_rank",
+                    "displayName": "Priority",
+                    "style": {
+                      "type": "basic",
+                      "rules": [
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "2"
+                            },
+                            "operator": "<="
+                          },
+                          "backgroundColor": "#FFCDD2",
+                          "foregroundColor": "#B71C1C",
+                          "bold": true
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "4"
+                            },
+                            "operator": "<="
+                          },
+                          "backgroundColor": "#FFF9C4",
+                          "foregroundColor": "#F57F17"
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "5"
+                            },
+                            "operator": "<="
+                          },
+                          "backgroundColor": "#E8F5E9",
+                          "foregroundColor": "#1B5E20"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "fieldName": "status",
+                    "displayName": "Status",
+                    "style": {
+                      "type": "basic",
+                      "rules": [
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "Open"
+                            },
+                            "operator": "="
+                          },
+                          "backgroundColor": "#FFCDD2",
+                          "foregroundColor": "#B71C1C",
+                          "bold": true
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "Acknowledged"
+                            },
+                            "operator": "="
+                          },
+                          "backgroundColor": "#C8E6C9",
+                          "foregroundColor": "#1B5E20"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "fieldName": "severity",
+                    "displayName": "Severity",
+                    "style": {
+                      "type": "basic",
+                      "rules": [
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "critical"
+                            },
+                            "operator": "="
+                          },
+                          "backgroundColor": "#FFCDD2",
+                          "foregroundColor": "#B71C1C",
+                          "bold": true
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "warning"
+                            },
+                            "operator": "="
+                          },
+                          "backgroundColor": "#FFF9C4",
+                          "foregroundColor": "#F57F17"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "fieldName": "alert_age_days",
+                    "displayName": "Age (Days)",
+                    "style": {
+                      "type": "basic",
+                      "rules": [
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "14"
+                            },
+                            "operator": ">="
+                          },
+                          "backgroundColor": "#FFCDD2",
+                          "foregroundColor": "#B71C1C",
+                          "bold": true
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "7"
+                            },
+                            "operator": ">="
+                          },
+                          "backgroundColor": "#FFF9C4",
+                          "foregroundColor": "#F57F17"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "fieldName": "table_name",
+                    "displayName": "Table"
+                  },
+                  {
+                    "fieldName": "domain_name",
+                    "displayName": "Domain"
+                  },
+                  {
+                    "fieldName": "dimension_name",
+                    "displayName": "Dimension"
+                  },
+                  {
+                    "fieldName": "alert_type",
+                    "displayName": "Alert Type"
+                  },
+                  {
+                    "fieldName": "is_critical",
+                    "displayName": "Critical Asset"
+                  },
+                  {
+                    "fieldName": "overall_score",
+                    "displayName": "DQ Score",
+                    "style": {
+                      "type": "basic",
+                      "rules": [
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "80"
+                            },
+                            "operator": ">="
+                          },
+                          "backgroundColor": "#C8E6C9",
+                          "foregroundColor": "#1B5E20"
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "70"
+                            },
+                            "operator": ">="
+                          },
+                          "backgroundColor": "#FFF9C4",
+                          "foregroundColor": "#F57F17"
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "70"
+                            },
+                            "operator": "<"
+                          },
+                          "backgroundColor": "#FFCDD2",
+                          "foregroundColor": "#B71C1C"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "fieldName": "message",
+                    "displayName": "Message"
+                  },
+                  {
+                    "fieldName": "acknowledged_by_name",
+                    "displayName": "Acknowledged By"
+                  },
+                  {
+                    "fieldName": "triggered_at",
+                    "displayName": "Triggered At"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 8,
+            "width": 12,
+            "height": 9
+          }
+        },
+        {
+          "widget": {
+            "name": "4234d63a",
+            "multilineTextboxSpec": {
+              "lines": [
+                "# <span style=\"text-align:center;display:block\">Alert Triage Queue</span>"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 4,
+            "width": 12,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "ade63b66",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ea981bad",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "column_name",
+                      "expression": "`column_name`"
+                    },
+                    {
+                      "name": "rule_name",
+                      "expression": "`rule_name`"
+                    },
+                    {
+                      "name": "executed_rule_sql",
+                      "expression": "`executed_rule_sql`"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`table_name` IN (`table_name`) OR TRUE"
+                    },
+                    {
+                      "expression": "`column_name` IN (`column_name`) OR TRUE"
+                    },
+                    {
+                      "expression": "`rule_type` IN (`rule_type`) OR TRUE"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Rule Execution Detail",
+                "showTitle": true
+              },
+              "rowsPerPage": 25,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "table_name",
+                    "displayName": "Table"
+                  },
+                  {
+                    "fieldName": "column_name",
+                    "displayName": "Column"
+                  },
+                  {
+                    "fieldName": "rule_name",
+                    "displayName": "Rule Category"
+                  },
+                  {
+                    "fieldName": "executed_rule_sql",
+                    "displayName": "Rule Message"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 26,
+            "width": 12,
+            "height": 8
+          }
+        },
+        {
+          "widget": {
+            "name": "f18981e2",
+            "queries": [
+              {
+                "name": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863841fff91a5d45ec623b91b_rule_type",
+                "query": {
+                  "datasetName": "ea981bad",
+                  "fields": [
+                    {
+                      "name": "rule_type",
+                      "expression": "`rule_type`"
+                    },
+                    {
+                      "name": "rule_type_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Rule Type",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "rule_type",
+                    "queryName": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863841fff91a5d45ec623b91b_rule_type"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 5,
+            "y": 2,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "fc95e625",
+            "queries": [
+              {
+                "name": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863841fff91a5d45ec623b91b_dimension_name",
+                "query": {
+                  "datasetName": "ea981bad",
+                  "fields": [
+                    {
+                      "name": "dimension_name",
+                      "expression": "`dimension_name`"
+                    },
+                    {
+                      "name": "dimension_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f15308638510069c79b17990ffc372_dimension_name",
+                "query": {
+                  "datasetName": "0ef517d6",
+                  "fields": [
+                    {
+                      "name": "dimension_name",
+                      "expression": "`dimension_name`"
+                    },
+                    {
+                      "name": "dimension_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Quality Dimension",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "dimension_name",
+                    "queryName": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863841fff91a5d45ec623b91b_dimension_name"
+                  },
+                  {
+                    "fieldName": "dimension_name",
+                    "queryName": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f15308638510069c79b17990ffc372_dimension_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 7,
+            "y": 2,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "b8b84a5b",
+            "queries": [
+              {
+                "name": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863841fff91a5d45ec623b91b_default_severity_weight",
+                "query": {
+                  "datasetName": "ea981bad",
+                  "fields": [
+                    {
+                      "name": "default_severity_weight",
+                      "expression": "`default_severity_weight`"
+                    },
+                    {
+                      "name": "default_severity_weight_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Severity Weight",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "default_severity_weight",
+                    "queryName": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863841fff91a5d45ec623b91b_default_severity_weight"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 9,
+            "y": 2,
+            "width": 3,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "8e9a7f24",
+            "queries": [
+              {
+                "name": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863841fff91a5d45ec623b91b_column_name",
+                "query": {
+                  "datasetName": "ea981bad",
+                  "fields": [
+                    {
+                      "name": "column_name",
+                      "expression": "`column_name`"
+                    },
+                    {
+                      "name": "column_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Column"
+              },
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "column_name",
+                    "queryName": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f1530863841fff91a5d45ec623b91b_column_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 9,
+            "y": 0,
+            "width": 3,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "1078e736",
+            "multilineTextboxSpec": {
+              "lines": [
+                "# <span style=\"text-align:center;display:block\">All Rule Execution Results</span>"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 17,
+            "width": 12,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "filter_status",
+            "queries": [
+              {
+                "name": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f15308638510069c79b17990ffc372_status",
+                "query": {
+                  "datasetName": "0ef517d6",
+                  "fields": [
+                    {
+                      "name": "status",
+                      "expression": "`status`"
+                    },
+                    {
+                      "name": "status_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Alert Status",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "status",
+                    "queryName": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f15308638510069c79b17990ffc372_status"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "filter_alert_severity",
+            "queries": [
+              {
+                "name": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f15308638510069c79b17990ffc372_severity",
+                "query": {
+                  "datasetName": "0ef517d6",
+                  "fields": [
+                    {
+                      "name": "severity",
+                      "expression": "`severity`"
+                    },
+                    {
+                      "name": "severity_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Alert Severity",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "severity",
+                    "queryName": "dashboards/01f126da8d231cccafaa442eecca33f8/datasets/01f15308638510069c79b17990ffc372_severity"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 2,
+            "width": 3,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "open_alerts_counter",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "0ef517d6",
+                  "fields": [
+                    {
+                      "name": "count(alert_id)",
+                      "expression": "COUNT(`alert_id`)"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`status` = 'Open'"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Open Alerts",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "count(alert_id)",
+                  "format": {
+                    "type": "number-plain",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 0
+                    },
+                    "abbreviation": "none"
+                  },
+                  "style": {
+                    "rules": [
+                      {
+                        "condition": {
+                          "operand": {
+                            "type": "data-value",
+                            "value": "0"
+                          },
+                          "operator": ">"
+                        },
+                        "color": "#D32F2F"
+                      }
+                    ]
+                  },
+                  "displayName": "Open"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 5,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "critical_alerts_counter",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "0ef517d6",
+                  "fields": [
+                    {
+                      "name": "count(alert_id)",
+                      "expression": "COUNT(`alert_id`)"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`status` = 'Open'"
+                    },
+                    {
+                      "expression": "`severity` = 'critical'"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Critical Open Alerts",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "count(alert_id)",
+                  "format": {
+                    "type": "number-plain",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 0
+                    },
+                    "abbreviation": "none"
+                  },
+                  "style": {
+                    "rules": [
+                      {
+                        "condition": {
+                          "operand": {
+                            "type": "data-value",
+                            "value": "0"
+                          },
+                          "operator": ">"
+                        },
+                        "color": "#D32F2F"
+                      }
+                    ]
+                  },
+                  "displayName": "Critical Open"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 5,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "avg_age_counter",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "0ef517d6",
+                  "fields": [
+                    {
+                      "name": "avg(alert_age_days)",
+                      "expression": "AVG(`alert_age_days`)"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`status` = 'Open'"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Avg Alert Age (Days)",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "avg(alert_age_days)",
+                  "format": {
+                    "type": "number-plain",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 1
+                    },
+                    "abbreviation": "none"
+                  },
+                  "style": {
+                    "rules": [
+                      {
+                        "condition": {
+                          "operand": {
+                            "type": "data-value",
+                            "value": "7"
+                          },
+                          "operator": ">"
+                        },
+                        "color": "#FF6F00"
+                      }
+                    ]
+                  },
+                  "displayName": "Avg Age (Days)"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 9,
+            "y": 5,
+            "width": 3,
+            "height": 3
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    },
+    {
+      "name": "e26de61e",
+      "displayName": "Questions Answered",
+      "layout": [
+        {
+          "widget": {
+            "name": "0269a9cd",
+            "multilineTextboxSpec": {
+              "lines": [
+                "# Organization Level (The 30,000-foot view)\n",
+                "\n",
+                "## Trust & Health\n",
+                "\n",
+                "* What is our overall data quality score, and how has it trended over the last 30/60/90 days?\n",
+                "* What percentage of our critical data assets meet quality thresholds?\n",
+                "* How many active data quality incidents exist right now, and how many are overdue for resolution?\n",
+                "\n",
+                "## Risk & Exposure\n",
+                "\n",
+                "* Which business processes or decisions are currently running on data that fails quality standards?\n",
+                "* What is the estimated business impact (revenue, compliance risk, operational cost) of current quality gaps?\n",
+                "* Are any regulatory or compliance-sensitive domains at risk?\n",
+                "\n",
+                "## Progress & Accountability\n",
+                "\n",
+                "* Which teams own the worst-performing domains, and are they trending up or down?\n",
+                "* <span style=\"color: #FF3621;\">What is our mean time to detect and resolve data quality issues?</span>\n",
+                "* <span style=\"color: #FF3621;\">How many issues were opened vs. closed this period?</span>"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "dd1febcc",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Data Domain Level\n",
+                "*Finance, Clinical, Claims, Imaging, etc.*\n",
+                "\n",
+                "### Completeness\n",
+                "- What percentage of required fields are populated? Which critical fields are missing most often?\n",
+                "- Are source systems delivering complete records, or are there upstream gaps?\n",
+                "\n",
+                "### Accuracy & Validity\n",
+                "- What share of values fall outside expected ranges or fail validation rules?\n",
+                "- How does this domain's data compare against authoritative reference sources or golden records?\n",
+                "\n",
+                "### Timeliness\n",
+                "- Is data arriving on schedule? What is the average and worst-case latency from source to available?\n",
+                "- What percentage of records are stale beyond acceptable thresholds?\n",
+                "\n",
+                "### Consistency\n",
+                "- Where does this domain's data conflict with the same entities in other domains (e.g., patient demographics across clinical vs. claims)?\n",
+                "- Are definitions and formats applied uniformly across source systems?\n",
+                "\n",
+                "### Uniqueness\n",
+                "- What is the estimated duplicate rate for key entities (patients, providers, accounts)?\n",
+                "- Are deduplication and MDM processes keeping pace?\n",
+                "\n",
+                "### Lineage & Coverage\n",
+                "- What percentage of data assets in this domain have documented lineage and ownership?\n",
+                "- Are there unmapped or ungoverned data sources feeding downstream analytics?"
+              ]
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 0,
+            "width": 6,
+            "height": 10
           }
         }
       ],
